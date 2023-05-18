@@ -1,5 +1,6 @@
 import Capacitor
 import AVFoundation
+import AudioToolbox
 
 /**
  * Please read the Capacitor iOS Plugin Development Guide
@@ -8,6 +9,25 @@ import AVFoundation
 @objc(MicrophonePlugin)
 public class MicrophonePlugin: CAPPlugin {
     private var implementation: Microphone? = nil
+    private var audioQueue: AudioQueueRef?
+    private var audioBuffers = [AudioQueueBufferRef?]()
+    private var audioFormat = AudioStreamBasicDescription()
+    private var microphoneEnabled = false
+    
+    public override func load() {
+        configureAudioFormat()
+    }
+    
+    private func configureAudioFormat() {
+        audioFormat.mSampleRate = 8192.0
+        audioFormat.mFormatID = kAudioFormatLinearPCM
+        audioFormat.mFormatFlags = kLinearPCMFormatFlagIsSignedInteger | kLinearPCMFormatFlagIsPacked
+        audioFormat.mBitsPerChannel = 16
+        audioFormat.mChannelsPerFrame = 1
+        audioFormat.mFramesPerPacket = 1
+        audioFormat.mBytesPerFrame = audioFormat.mBitsPerChannel / 8 * audioFormat.mChannelsPerFrame
+        audioFormat.mBytesPerPacket = audioFormat.mBytesPerFrame * audioFormat.mFramesPerPacket
+    }
 
     @objc override public func checkPermissions(_ call: CAPPluginCall) {
         var result: [String: Any] = [:]
@@ -46,6 +66,58 @@ public class MicrophonePlugin: CAPPlugin {
         }
     }
     
+    @objc func enableMicrophone(_ call: CAPPluginCall) {
+        AudioQueueNewInput(&audioFormat, recordingCallback, Unmanaged.passUnretained(self).toOpaque(), nil, nil, 0, &audioQueue)
+        
+        // Allocate audio queue buffers
+        let bufferSize: UInt32 = 4096 // Adjust as per your requirements
+        for _ in 0..<3 {
+            var bufferRef: AudioQueueBufferRef?
+            AudioQueueAllocateBuffer(audioQueue!, bufferSize, &bufferRef)
+            
+            guard let buffer = bufferRef else { return }
+            AudioQueueEnqueueBuffer(audioQueue!, buffer, 0, nil)
+            audioBuffers.append(buffer)
+        }
+        
+        // Start the audio queue
+        AudioQueueStart(audioQueue!, nil)
+        
+        call.resolve(["status": StatusMessageTypes.microphoneEnabled.rawValue])
+    }
+    
+    @objc func disableMicrophone(_ call: CAPPluginCall) {
+        guard let queue = audioQueue else { return }
+        AudioQueueStop(queue, true)
+        
+        for i in 0..<3 {
+            guard let buffer = audioBuffers[i] else { return }
+            AudioQueueFreeBuffer(queue, buffer)
+        }
+        
+        AudioQueueDispose(queue, true)
+        
+        call.resolve(["status": StatusMessageTypes.microphoneDisabled.rawValue])
+    }
+    
+    private let recordingCallback: AudioQueueInputCallback = { (inUserData, inQueue, inBuffer, inStartTime, inNumPackets, inPacketDesc) in
+        guard let userData = inUserData else { return }
+        
+        let audioRecorder = Unmanaged<MicrophonePlugin>.fromOpaque(userData).takeUnretainedValue()
+        audioRecorder.processRecordedAudio(buffer: inBuffer)
+        
+        // Re-enqueue the buffer for continuous recording
+        AudioQueueEnqueueBuffer(inQueue, inBuffer, 0, nil)
+    }
+    
+    private func processRecordedAudio(buffer: AudioQueueBufferRef) {
+        let samples = buffer.pointee.mAudioData.assumingMemoryBound(to: Int16.self)
+        let nsamples = buffer.pointee.mAudioDataByteSize
+        let data = NSData(bytes: samples, length: Int(nsamples))
+        let str = data.base64EncodedString(options: [.lineLength64Characters])
+        self.notifyListeners("audioDataReceived", data: ["audioData": str])
+    }
+    
     @objc func startRecording(_ call: CAPPluginCall) {
         if(!isAudioRecordingPermissionGranted()) {
             call.reject(StatusMessageTypes.microphonePermissionNotGranted.rawValue)
@@ -70,7 +142,7 @@ public class MicrophonePlugin: CAPPlugin {
             call.resolve(["status": StatusMessageTypes.recordingStared.rawValue])
         }
     }
-    
+
     @objc func stopRecording(_ call: CAPPluginCall) {
         if(implementation == nil) {
             call.reject(StatusMessageTypes.noRecordingInProgress.rawValue)

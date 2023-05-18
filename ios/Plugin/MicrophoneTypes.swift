@@ -57,6 +57,8 @@ enum StatusMessageTypes: String {
     case recordingInProgress = "recording in progress"
     case microphoneIsBusy = "microphone is busy"
     case recordingStared = "recording stared"
+    case microphoneEnabled = "microphone enabled"
+    case microphoneDisabled = "microphone disabled"
 }
 
 enum MicrophonePermissionType: String, CaseIterable {
