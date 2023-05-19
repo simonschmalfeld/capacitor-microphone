@@ -1,0 +1,316 @@
+{
+  "api": {
+    "name": "MicrophonePlugin",
+    "slug": "microphoneplugin",
+    "docs": "",
+    "tags": [],
+    "methods": [
+      {
+        "name": "checkPermissions",
+        "signature": "() => Promise<PermissionStatus>",
+        "parameters": [],
+        "returns": "Promise<PermissionStatus>",
+        "tags": [
+          {
+            "name": "returns",
+            "text": [
+              {
+                "text": "PermissionStatus",
+                "kind": "text"
+              }
+            ]
+          },
+          {
+            "name": "since",
+            "text": [
+              {
+                "text": "0.0.3",
+                "kind": "text"
+              }
+            ]
+          }
+        ],
+        "docs": "Checks microphone permission",
+        "complexTypes": [
+          "PermissionStatus"
+        ],
+        "slug": "checkpermissions"
+      },
+      {
+        "name": "requestPermissions",
+        "signature": "() => Promise<PermissionStatus>",
+        "parameters": [],
+        "returns": "Promise<PermissionStatus>",
+        "tags": [
+          {
+            "name": "returns",
+            "text": [
+              {
+                "text": "PermissionStatus",
+                "kind": "text"
+              }
+            ]
+          },
+          {
+            "name": "since",
+            "text": [
+              {
+                "text": "0.0.3",
+                "kind": "text"
+              }
+            ]
+          }
+        ],
+        "docs": "Requests microphone permission",
+        "complexTypes": [
+          "PermissionStatus"
+        ],
+        "slug": "requestpermissions"
+      },
+      {
+        "name": "startRecording",
+        "signature": "() => Promise<void>",
+        "parameters": [],
+        "returns": "Promise<void>",
+        "tags": [
+          {
+            "name": "since",
+            "text": [
+              {
+                "text": "0.0.3",
+                "kind": "text"
+              }
+            ]
+          }
+        ],
+        "docs": "Starts recoding session if no session is in progress",
+        "complexTypes": [],
+        "slug": "startrecording"
+      },
+      {
+        "name": "stopRecording",
+        "signature": "() => Promise<AudioRecording>",
+        "parameters": [],
+        "returns": "Promise<AudioRecording>",
+        "tags": [
+          {
+            "name": "returns",
+            "text": [
+              {
+                "text": "AudioRecording",
+                "kind": "text"
+              }
+            ]
+          },
+          {
+            "name": "since",
+            "text": [
+              {
+                "text": "0.0.3",
+                "kind": "text"
+              }
+            ]
+          }
+        ],
+        "docs": "Stops recoding session if one is in progress",
+        "complexTypes": [
+          "AudioRecording"
+        ],
+        "slug": "stoprecording"
+      }
+    ],
+    "properties": []
+  },
+  "interfaces": [
+    {
+      "name": "PermissionStatus",
+      "slug": "permissionstatus",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "microphone",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "MicrophonePermissionState"
+          ],
+          "type": "MicrophonePermissionState"
+        }
+      ]
+    },
+    {
+      "name": "AudioRecording",
+      "slug": "audiorecording",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "base64String",
+          "tags": [
+            {
+              "text": [
+                {
+                  "text": "0.0.3",
+                  "kind": "text"
+                }
+              ],
+              "name": "since"
+            }
+          ],
+          "docs": "The base64 encoded string representation of the audio file.",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "dataUrl",
+          "tags": [
+            {
+              "text": [
+                {
+                  "text": "0.0.3",
+                  "kind": "text"
+                }
+              ],
+              "name": "since"
+            }
+          ],
+          "docs": "The url starting with 'data:audio/aac;base64,' and the base64 encoded string representation of the audio file.",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "path",
+          "tags": [
+            {
+              "text": [
+                {
+                  "text": "0.0.3",
+                  "kind": "text"
+                }
+              ],
+              "name": "since"
+            }
+          ],
+          "docs": "platform-specific file URL that can be read later using the Filesystem API.",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "webPath",
+          "tags": [
+            {
+              "text": [
+                {
+                  "text": "0.0.3",
+                  "kind": "text"
+                }
+              ],
+              "name": "since"
+            }
+          ],
+          "docs": "webPath returns a path that can be used to set the src attribute of an audio element can be useful for testing.",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "duration",
+          "tags": [
+            {
+              "text": [
+                {
+                  "text": "0.0.3",
+                  "kind": "text"
+                }
+              ],
+              "name": "since"
+            }
+          ],
+          "docs": "recoding duration in milliseconds",
+          "complexTypes": [],
+          "type": "number"
+        },
+        {
+          "name": "format",
+          "tags": [
+            {
+              "text": [
+                {
+                  "text": "0.0.3",
+                  "kind": "text"
+                }
+              ],
+              "name": "since"
+            }
+          ],
+          "docs": "file extension (only .m4a supported on this version)",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "mimeType",
+          "tags": [
+            {
+              "text": [
+                {
+                  "text": "0.0.3",
+                  "kind": "text"
+                }
+              ],
+              "name": "since"
+            }
+          ],
+          "docs": "file encoding \"audio/aac\"\n(kAudioFormatMPEG4AAC for iOS) \n(MPEG_4 / AAC for Android)",
+          "complexTypes": [],
+          "type": "string | undefined"
+        }
+      ]
+    }
+  ],
+  "enums": [],
+  "typeAliases": [
+    {
+      "name": "MicrophonePermissionState",
+      "slug": "microphonepermissionstate",
+      "docs": "",
+      "types": [
+        {
+          "text": "PermissionState",
+          "complexTypes": [
+            "PermissionState"
+          ]
+        },
+        {
+          "text": "'limited'",
+          "complexTypes": []
+        }
+      ]
+    },
+    {
+      "name": "PermissionState",
+      "slug": "permissionstate",
+      "docs": "",
+      "types": [
+        {
+          "text": "'prompt'",
+          "complexTypes": []
+        },
+        {
+          "text": "'prompt-with-rationale'",
+          "complexTypes": []
+        },
+        {
+          "text": "'granted'",
+          "complexTypes": []
+        },
+        {
+          "text": "'denied'",
+          "complexTypes": []
+        }
+      ]
+    }
+  ],
+  "pluginConfigs": []
+}

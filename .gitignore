@@ -1,11 +1,11 @@
 # node files
-dist
+# dist
 node_modules
 
 # iOS files
 Pods
 Podfile.lock
-Build
+# Build
 xcuserdata
 
 # macOS files
@@ -26,9 +26,9 @@ xcuserdata
 *.class
 
 # Generated files
-bin
-gen
-out
+# bin
+# gen
+# out
 
 # Gradle files
 .gradle
