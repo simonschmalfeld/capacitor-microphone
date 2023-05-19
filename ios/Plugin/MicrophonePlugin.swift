@@ -10,7 +10,7 @@ import AudioToolbox
 public class MicrophonePlugin: CAPPlugin {
     private var implementation: Microphone? = nil
     private var audioQueue: AudioQueueRef?
-    private var audioBuffers = [AudioQueueBufferRef?]()
+    private var audioBuffer: AudioQueueBufferRef?
     private var audioFormat = AudioStreamBasicDescription()
     private var microphoneEnabled = false
     
@@ -22,7 +22,7 @@ public class MicrophonePlugin: CAPPlugin {
         audioFormat.mSampleRate = 8192.0
         audioFormat.mFormatID = kAudioFormatLinearPCM
         audioFormat.mFormatFlags = kLinearPCMFormatFlagIsSignedInteger | kLinearPCMFormatFlagIsPacked
-        audioFormat.mBitsPerChannel = 16
+        audioFormat.mBitsPerChannel = 8
         audioFormat.mChannelsPerFrame = 1
         audioFormat.mFramesPerPacket = 1
         audioFormat.mBytesPerFrame = audioFormat.mBitsPerChannel / 8 * audioFormat.mChannelsPerFrame
@@ -70,15 +70,13 @@ public class MicrophonePlugin: CAPPlugin {
         AudioQueueNewInput(&audioFormat, recordingCallback, Unmanaged.passUnretained(self).toOpaque(), nil, nil, 0, &audioQueue)
         
         // Allocate audio queue buffers
-        let bufferSize: UInt32 = 4096 // Adjust as per your requirements
-        for _ in 0..<3 {
-            var bufferRef: AudioQueueBufferRef?
-            AudioQueueAllocateBuffer(audioQueue!, bufferSize, &bufferRef)
-            
-            guard let buffer = bufferRef else { return }
-            AudioQueueEnqueueBuffer(audioQueue!, buffer, 0, nil)
-            audioBuffers.append(buffer)
-        }
+        let bufferSize: UInt32 = 8192 // Adjust as per your requirements
+        var bufferRef: AudioQueueBufferRef?
+        AudioQueueAllocateBuffer(audioQueue!, bufferSize, &bufferRef)
+        
+        guard let buffer = bufferRef else { return }
+        AudioQueueEnqueueBuffer(audioQueue!, buffer, 0, nil)
+        audioBuffer = buffer
         
         // Start the audio queue
         AudioQueueStart(audioQueue!, nil)
@@ -90,11 +88,8 @@ public class MicrophonePlugin: CAPPlugin {
         guard let queue = audioQueue else { return }
         AudioQueueStop(queue, true)
         
-        for i in 0..<3 {
-            guard let buffer = audioBuffers[i] else { return }
-            AudioQueueFreeBuffer(queue, buffer)
-        }
-        
+        guard let buffer = audioBuffer else { return }
+        AudioQueueFreeBuffer(queue, buffer)
         AudioQueueDispose(queue, true)
         
         call.resolve(["status": StatusMessageTypes.microphoneDisabled.rawValue])

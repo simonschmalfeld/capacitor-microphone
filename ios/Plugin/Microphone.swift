@@ -6,7 +6,7 @@ import AVFAudio
     private var audioFilePath: URL!
     
     private let settings = [
-        AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
+        AVFormatIDKey: Int(kAudioFormatLinearPCM),
         AVSampleRateKey: 44100,
         AVNumberOfChannelsKey: 1,
         AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
@@ -21,7 +21,7 @@ import AVFAudio
             recordingSession = AVAudioSession.sharedInstance()
             try recordingSession.setCategory(AVAudioSession.Category.record)
             try recordingSession.setActive(true)
-            audioFilePath = getDirectoryToSaveAudioFile().appendingPathComponent("\(UUID().uuidString).m4a")
+            audioFilePath = getDirectoryToSaveAudioFile().appendingPathComponent("\(UUID().uuidString).wav")
             audioRecorder = try AVAudioRecorder(url: audioFilePath, settings: settings)
             audioRecorder.record()
             return true
