@@ -5,4 +5,6 @@ export declare class MicrophoneWeb extends WebPlugin implements MicrophonePlugin
     requestPermissions(): Promise<PermissionStatus>;
     startRecording(): Promise<void>;
     stopRecording(): Promise<AudioRecording>;
+    enableMicrophone(): Promise<void>;
+    disableMicrophone(): Promise<void>;
 }

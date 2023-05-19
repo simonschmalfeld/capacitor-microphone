@@ -60,6 +60,8 @@ Read about [Setting Permissions](https://capacitorjs.com/docs/android/configurat
 * [`requestPermissions()`](#requestpermissions)
 * [`startRecording()`](#startrecording)
 * [`stopRecording()`](#stoprecording)
+* [`enableMicrophone()`](#enablemicrophone)
+* [`disableMicrophone()`](#disablemicrophone)
 * [Interfaces](#interfaces)
 * [Type Aliases](#type-aliases)
 
@@ -114,6 +116,24 @@ stopRecording() => Promise<AudioRecording>
 Stops recoding session if one is in progress
 
 **Returns:** <code>Promise&lt;<a href="#audiorecording">AudioRecording</a>&gt;</code>
+
+--------------------
+
+
+### enableMicrophone()
+
+```typescript
+enableMicrophone() => Promise<void>
+```
+
+--------------------
+
+
+### disableMicrophone()
+
+```typescript
+disableMicrophone() => Promise<void>
+```
 
 --------------------
 

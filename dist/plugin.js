@@ -27,6 +27,12 @@ var capacitorMicrophone = (function (exports, core) {
         async stopRecording() {
             throw this.unimplemented('Not implemented on web.');
         }
+        async enableMicrophone() {
+            throw this.unimplemented('Not implemented on web.');
+        }
+        async disableMicrophone() {
+            throw this.unimplemented('Not implemented on web.');
+        }
     }
 
     var web = /*#__PURE__*/Object.freeze({

@@ -117,6 +117,26 @@
           "AudioRecording"
         ],
         "slug": "stoprecording"
+      },
+      {
+        "name": "enableMicrophone",
+        "signature": "() => Promise<void>",
+        "parameters": [],
+        "returns": "Promise<void>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [],
+        "slug": "enablemicrophone"
+      },
+      {
+        "name": "disableMicrophone",
+        "signature": "() => Promise<void>",
+        "parameters": [],
+        "returns": "Promise<void>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [],
+        "slug": "disablemicrophone"
       }
     ],
     "properties": []
