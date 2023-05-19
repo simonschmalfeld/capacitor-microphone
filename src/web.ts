@@ -19,4 +19,12 @@ export class MicrophoneWeb extends WebPlugin implements MicrophonePlugin {
   async stopRecording(): Promise<AudioRecording> {
     throw this.unimplemented('Not implemented on web.');
   }
+
+  async enableMicrophone(): Promise<void> {
+    throw this.unimplemented('Not implemented on web.');
+  }
+
+  async disableMicrophone(): Promise<void> {
+    throw this.unimplemented('Not implemented on web.');
+  }
 }

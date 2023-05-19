@@ -27,6 +27,9 @@ export interface MicrophonePlugin {
    * @since 0.0.3
    */
   stopRecording(): Promise<AudioRecording>;
+
+  enableMicrophone(): Promise<void>
+  disableMicrophone(): Promise<void>
 }
 
 export interface AudioRecording {
