@@ -13,9 +13,15 @@ public class MicrophonePlugin: CAPPlugin {
     private var audioBuffer: AudioQueueBufferRef?
     private var audioFormat = AudioStreamBasicDescription()
     private var microphoneEnabled = false
+    private var listenerHandle: Any?
+    let audioEngine = AVAudioEngine()
+    let bufferSize: AVAudioFrameCount = 245
+    var analysisBuffer: [Float] = []
     
     public override func load() {
         configureAudioFormat()
+        configureAudioSession()
+        setupAudioEngine()
     }
     
     private func configureAudioFormat() {
@@ -27,6 +33,29 @@ public class MicrophonePlugin: CAPPlugin {
         audioFormat.mFramesPerPacket = 1
         audioFormat.mBytesPerFrame = audioFormat.mBitsPerChannel / 8 * audioFormat.mChannelsPerFrame
         audioFormat.mBytesPerPacket = audioFormat.mBytesPerFrame * audioFormat.mFramesPerPacket
+    }
+    
+    func configureAudioSession() {
+        let audioSession = AVAudioSession.sharedInstance()
+        try! audioSession.setCategory(.record, mode: .default)
+        try! audioSession.setActive(true)
+    }
+        
+    func setupAudioEngine() {
+        let inputNode = audioEngine.inputNode
+        
+        listenerHandle = inputNode.installTap(onBus: 0, bufferSize: bufferSize, format: inputNode.outputFormat(forBus: 0)) { (buffer, time) in
+            if let floatChannelData = buffer.floatChannelData?[0] {
+                let frameLength = Int(buffer.frameLength)
+                let channelData = Array(UnsafeBufferPointer(start: floatChannelData, count: frameLength))
+                self.analysisBuffer = Array(channelData.prefix(numericCast(self.bufferSize)))
+                
+                // Send the analysisBuffer array to the JavaScript side
+                self.notifyListeners("audioDataReceived", data: ["audioData": self.analysisBuffer])
+            }
+        }
+
+        audioEngine.prepare()
     }
 
     @objc override public func checkPermissions(_ call: CAPPluginCall) {
@@ -67,50 +96,19 @@ public class MicrophonePlugin: CAPPlugin {
     }
     
     @objc func enableMicrophone(_ call: CAPPluginCall) {
-        AudioQueueNewInput(&audioFormat, recordingCallback, Unmanaged.passUnretained(self).toOpaque(), nil, nil, 0, &audioQueue)
-        
-        // Allocate audio queue buffers
-        let bufferSize: UInt32 = 8192 // Adjust as per your requirements
-        var bufferRef: AudioQueueBufferRef?
-        AudioQueueAllocateBuffer(audioQueue!, bufferSize, &bufferRef)
-        
-        guard let buffer = bufferRef else { return }
-        AudioQueueEnqueueBuffer(audioQueue!, buffer, 0, nil)
-        audioBuffer = buffer
-        
-        // Start the audio queue
-        AudioQueueStart(audioQueue!, nil)
-        
+        try! audioEngine.start()
         call.resolve(["status": StatusMessageTypes.microphoneEnabled.rawValue])
     }
     
     @objc func disableMicrophone(_ call: CAPPluginCall) {
-        guard let queue = audioQueue else { return }
-        AudioQueueStop(queue, true)
-        
-        guard let buffer = audioBuffer else { return }
-        AudioQueueFreeBuffer(queue, buffer)
-        AudioQueueDispose(queue, true)
-        
+        if let handle = listenerHandle as? AVAudioNodeTapBlock {
+            let inputNode = audioEngine.inputNode
+            inputNode.removeTap(onBus: 0)
+            listenerHandle = nil
+       }
+        audioEngine.stop()
+ 
         call.resolve(["status": StatusMessageTypes.microphoneDisabled.rawValue])
-    }
-    
-    private let recordingCallback: AudioQueueInputCallback = { (inUserData, inQueue, inBuffer, inStartTime, inNumPackets, inPacketDesc) in
-        guard let userData = inUserData else { return }
-        
-        let audioRecorder = Unmanaged<MicrophonePlugin>.fromOpaque(userData).takeUnretainedValue()
-        audioRecorder.processRecordedAudio(buffer: inBuffer)
-        
-        // Re-enqueue the buffer for continuous recording
-        AudioQueueEnqueueBuffer(inQueue, inBuffer, 0, nil)
-    }
-    
-    private func processRecordedAudio(buffer: AudioQueueBufferRef) {
-        let samples = buffer.pointee.mAudioData.assumingMemoryBound(to: Int16.self)
-        let nsamples = buffer.pointee.mAudioDataByteSize
-        let data = NSData(bytes: samples, length: Int(nsamples))
-        let str = data.base64EncodedString(options: [.lineLength64Characters])
-        self.notifyListeners("audioDataReceived", data: ["audioData": str])
     }
     
     @objc func startRecording(_ call: CAPPluginCall) {
