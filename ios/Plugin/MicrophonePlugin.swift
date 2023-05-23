@@ -14,13 +14,11 @@ public class MicrophonePlugin: CAPPlugin {
     private var audioFormat = AudioStreamBasicDescription()
     private var microphoneEnabled = false
     private var listenerHandle: Any?
+    private var analysisBuffer: Array<Any> = []
     let audioEngine = AVAudioEngine()
     let bufferSize: AVAudioFrameCount = 245
-    var analysisBuffer: [Float] = []
     
     public override func load() {
-        configureAudioFormat()
-        configureAudioSession()
         setupAudioEngine()
     }
     
@@ -43,14 +41,31 @@ public class MicrophonePlugin: CAPPlugin {
         
     func setupAudioEngine() {
         let inputNode = audioEngine.inputNode
+        let inputFormat = inputNode.outputFormat(forBus: 0)
         
-        listenerHandle = inputNode.installTap(onBus: 0, bufferSize: bufferSize, format: inputNode.outputFormat(forBus: 0)) { (buffer, time) in
-            if let floatChannelData = buffer.floatChannelData?[0] {
-                let frameLength = Int(buffer.frameLength)
-                let channelData = Array(UnsafeBufferPointer(start: floatChannelData, count: frameLength))
+        let recordingFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 8192.0, channels: 1, interleaved: false)
+        let formatConverter = AVAudioConverter(from: inputFormat, to: recordingFormat!)
+        
+        listenerHandle = inputNode.installTap(onBus: 0, bufferSize: bufferSize, format: inputFormat) { (buffer, _) in
+            
+            let pcmBuffer = AVAudioPCMBuffer(pcmFormat: recordingFormat!, frameCapacity: AVAudioFrameCount(recordingFormat!.sampleRate * 2.0))
+            var error: NSError? = nil
+
+            let inputBlock: AVAudioConverterInputBlock = {inNumPackets, outStatus in
+                outStatus.pointee = AVAudioConverterInputStatus.haveData
+                return buffer
+            }
+
+            formatConverter?.convert(to: pcmBuffer!, error: &error, withInputFrom: inputBlock)
+
+            if error != nil {
+                print(error!.localizedDescription)
+            }
+
+            else if let floatChannelData = pcmBuffer!.floatChannelData {
+                let channelData = stride(from: 0, to: Int(pcmBuffer!.frameLength),
+                                         by: pcmBuffer!.stride).map{ floatChannelData.pointee[$0] }
                 self.analysisBuffer = Array(channelData.prefix(numericCast(self.bufferSize)))
-                
-                // Send the analysisBuffer array to the JavaScript side
                 self.notifyListeners("audioDataReceived", data: ["audioData": self.analysisBuffer])
             }
         }
@@ -101,13 +116,12 @@ public class MicrophonePlugin: CAPPlugin {
     }
     
     @objc func disableMicrophone(_ call: CAPPluginCall) {
-        if let handle = listenerHandle as? AVAudioNodeTapBlock {
-            let inputNode = audioEngine.inputNode
-            inputNode.removeTap(onBus: 0)
-            listenerHandle = nil
-       }
+//        if let handle = listenerHandle as? AVAudioNodeTapBlock {
+//            let inputNode = audioEngine.inputNode
+//            inputNode.removeTap(onBus: 0)
+//            listenerHandle = nil
+//       }
         audioEngine.stop()
- 
         call.resolve(["status": StatusMessageTypes.microphoneDisabled.rawValue])
     }
     
