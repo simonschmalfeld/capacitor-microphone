@@ -7,7 +7,7 @@ import AVFAudio
     
     private let settings = [
         AVFormatIDKey: Int(kAudioFormatLinearPCM),
-        AVSampleRateKey: 44100,
+        AVSampleRateKey: 16000,
         AVNumberOfChannelsKey: 1,
         AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
     ]

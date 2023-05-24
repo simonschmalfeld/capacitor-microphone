@@ -157,12 +157,12 @@ public class MicrophonePlugin: CAPPlugin {
         
         let audioRecording = AudioRecording(
             base64String: base64String,
-            dataUrl: (base64String != nil) ? ("data:audio/aac;base64," + base64String!) : nil,
+            dataUrl: (base64String != nil) ? ("data:audio/pcm;base64," + base64String!) : nil,
             path: audioFileUrl?.absoluteString,
             webPath: webURL?.path,
             duration: getAudioFileDuration(audioFileUrl),
-            format: ".m4a",
-            mimeType: "audio/aac"
+            format: ".wav",
+            mimeType: "audio/pcm"
         )
         implementation = nil
         if audioRecording.base64String == nil || audioRecording.duration < 0 {
