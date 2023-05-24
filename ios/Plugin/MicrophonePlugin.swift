@@ -11,8 +11,6 @@ public class MicrophonePlugin: CAPPlugin {
     private var implementation: Microphone? = nil
     private var audioQueue: AudioQueueRef?
     private var audioBuffer: AudioQueueBufferRef?
-    private var audioFormat = AudioStreamBasicDescription()
-    private var microphoneEnabled = false
     private var listenerHandle: Any?
     private var analysisBuffer: Array<Any> = []
     let audioEngine = AVAudioEngine()
@@ -20,17 +18,6 @@ public class MicrophonePlugin: CAPPlugin {
     
     public override func load() {
         setupAudioEngine()
-    }
-    
-    private func configureAudioFormat() {
-        audioFormat.mSampleRate = 8192.0
-        audioFormat.mFormatID = kAudioFormatLinearPCM
-        audioFormat.mFormatFlags = kLinearPCMFormatFlagIsSignedInteger | kLinearPCMFormatFlagIsPacked
-        audioFormat.mBitsPerChannel = 8
-        audioFormat.mChannelsPerFrame = 1
-        audioFormat.mFramesPerPacket = 1
-        audioFormat.mBytesPerFrame = audioFormat.mBitsPerChannel / 8 * audioFormat.mChannelsPerFrame
-        audioFormat.mBytesPerPacket = audioFormat.mBytesPerFrame * audioFormat.mFramesPerPacket
     }
     
     func configureAudioSession() {
@@ -43,12 +30,12 @@ public class MicrophonePlugin: CAPPlugin {
         let inputNode = audioEngine.inputNode
         let inputFormat = inputNode.outputFormat(forBus: 0)
         
-        let recordingFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 8192.0, channels: 1, interleaved: false)
+        let recordingFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 8192.0, channels: 1, interleaved: true)
         let formatConverter = AVAudioConverter(from: inputFormat, to: recordingFormat!)
         
         listenerHandle = inputNode.installTap(onBus: 0, bufferSize: bufferSize, format: inputFormat) { (buffer, _) in
             
-            let pcmBuffer = AVAudioPCMBuffer(pcmFormat: recordingFormat!, frameCapacity: AVAudioFrameCount(recordingFormat!.sampleRate * 2.0))
+            let pcmBuffer = AVAudioPCMBuffer(pcmFormat: recordingFormat!, frameCapacity: AVAudioFrameCount(recordingFormat!.sampleRate))
             var error: NSError? = nil
 
             let inputBlock: AVAudioConverterInputBlock = {inNumPackets, outStatus in
