@@ -13,6 +13,7 @@ public class MicrophonePlugin: CAPPlugin {
     private var audioBuffer: AudioQueueBufferRef?
     private var listenerHandle: Any?
     private var analysisBuffer: Array<Any> = []
+    private var timer: Timer?
     let audioEngine = AVAudioEngine()
     let bufferSize: AVAudioFrameCount = 245
     
@@ -130,11 +131,26 @@ public class MicrophonePlugin: CAPPlugin {
         }
         
         let successfullyStartedRecording = implementation!.startRecording()
+        
         if successfullyStartedRecording == false {
             call.reject(StatusMessageTypes.cannotRecordOnThisPhone.rawValue)
-        } else {
-            call.resolve(["status": StatusMessageTypes.recordingStared.rawValue])
+            return
         }
+        
+        
+        
+        DispatchQueue.main.sync {
+            self.timer?.invalidate()
+        
+            self.timer = Timer.scheduledTimer(timeInterval: 1.0, target: self, selector: #selector(sendMeters), userInfo: nil, repeats: true)
+        }
+        
+        call.resolve(["status": StatusMessageTypes.recordingStared.rawValue])
+    }
+    
+    @objc func sendMeters() {
+        let decibels = self.implementation?.getMeters() ?? 0.0
+        self.notifyListeners("audioDataReceived", data: ["volume": decibels])
     }
 
     @objc func stopRecording(_ call: CAPPluginCall) {
@@ -144,6 +160,13 @@ public class MicrophonePlugin: CAPPlugin {
         }
         
         implementation?.stopRecording()
+        
+        if (self.timer != nil) {
+            DispatchQueue.main.sync {
+                self.timer?.invalidate()
+                self.timer = nil
+            }
+        }
         
         let audioFileUrl = implementation?.getOutputFile()
         if(audioFileUrl == nil) {
@@ -165,6 +188,8 @@ public class MicrophonePlugin: CAPPlugin {
             mimeType: "audio/pcm"
         )
         implementation = nil
+        self.removeAllListeners(call)
+        
         if audioRecording.base64String == nil || audioRecording.duration < 0 {
             call.reject(StatusMessageTypes.failedToFetchRecording.rawValue)
         } else {

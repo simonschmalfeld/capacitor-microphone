@@ -23,6 +23,7 @@ import AVFAudio
             try recordingSession.setActive(true)
             audioFilePath = getDirectoryToSaveAudioFile().appendingPathComponent("\(UUID().uuidString).wav")
             audioRecorder = try AVAudioRecorder(url: audioFilePath, settings: settings)
+            audioRecorder.isMeteringEnabled = true
             audioRecorder.record()
             return true
         } catch {
@@ -41,5 +42,11 @@ import AVFAudio
     
     func getOutputFile() -> URL {
         return audioFilePath
+    }
+    
+    func getMeters() -> Float {
+        audioRecorder.updateMeters()
+        let decibels = audioRecorder.averagePower(forChannel: 0)
+        return decibels
     }
 }
