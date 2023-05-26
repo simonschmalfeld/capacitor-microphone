@@ -14,17 +14,12 @@ public class MicrophonePlugin: CAPPlugin {
     private var listenerHandle: Any?
     private var analysisBuffer: Array<Any> = []
     private var timer: Timer?
+    private var silenceDetected: UInt8 = 0
     let audioEngine = AVAudioEngine()
     let bufferSize: AVAudioFrameCount = 245
     
     public override func load() {
         setupAudioEngine()
-    }
-    
-    func configureAudioSession() {
-        let audioSession = AVAudioSession.sharedInstance()
-        try! audioSession.setCategory(.record, mode: .default)
-        try! audioSession.setActive(true)
     }
         
     func setupAudioEngine() {
@@ -35,7 +30,6 @@ public class MicrophonePlugin: CAPPlugin {
         let formatConverter = AVAudioConverter(from: inputFormat, to: recordingFormat!)
         
         listenerHandle = inputNode.installTap(onBus: 0, bufferSize: bufferSize, format: inputFormat) { (buffer, _) in
-            
             let pcmBuffer = AVAudioPCMBuffer(pcmFormat: recordingFormat!, frameCapacity: AVAudioFrameCount(recordingFormat!.sampleRate))
             var error: NSError? = nil
 
@@ -104,16 +98,13 @@ public class MicrophonePlugin: CAPPlugin {
     }
     
     @objc func disableMicrophone(_ call: CAPPluginCall) {
-//        if let handle = listenerHandle as? AVAudioNodeTapBlock {
-//            let inputNode = audioEngine.inputNode
-//            inputNode.removeTap(onBus: 0)
-//            listenerHandle = nil
-//       }
         audioEngine.stop()
         call.resolve(["status": StatusMessageTypes.microphoneDisabled.rawValue])
     }
     
     @objc func startRecording(_ call: CAPPluginCall) {
+        let silenceDetection = call.getBool("silenceDetection")
+        
         if(!isAudioRecordingPermissionGranted()) {
             call.reject(StatusMessageTypes.microphonePermissionNotGranted.rawValue)
             return
@@ -137,36 +128,30 @@ public class MicrophonePlugin: CAPPlugin {
             return
         }
         
-        
-        
-        DispatchQueue.main.sync {
-            self.timer?.invalidate()
-        
-            self.timer = Timer.scheduledTimer(timeInterval: 1.0, target: self, selector: #selector(sendMeters), userInfo: nil, repeats: true)
+        if (silenceDetection == true) {
+            DispatchQueue.main.sync {
+                self.timer?.invalidate()
+                self.timer = Timer.scheduledTimer(timeInterval: 1.0, target: self, selector: #selector(detectSilence), userInfo: nil, repeats: true)
+            }
         }
         
         call.resolve(["status": StatusMessageTypes.recordingStared.rawValue])
     }
     
-    @objc func sendMeters() {
-        let decibels = self.implementation?.getMeters() ?? 0.0
-        self.notifyListeners("audioDataReceived", data: ["volume": decibels])
-    }
-
     @objc func stopRecording(_ call: CAPPluginCall) {
         if(implementation == nil) {
             call.reject(StatusMessageTypes.noRecordingInProgress.rawValue)
             return
         }
         
-        implementation?.stopRecording()
-        
-        if (self.timer != nil) {
-            DispatchQueue.main.sync {
+        DispatchQueue.main.sync {
+            if (self.timer != nil) {
                 self.timer?.invalidate()
                 self.timer = nil
             }
         }
+        
+        implementation?.stopRecording()
         
         let audioFileUrl = implementation?.getOutputFile()
         if(audioFileUrl == nil) {
@@ -188,12 +173,27 @@ public class MicrophonePlugin: CAPPlugin {
             mimeType: "audio/pcm"
         )
         implementation = nil
-        self.removeAllListeners(call)
         
         if audioRecording.base64String == nil || audioRecording.duration < 0 {
             call.reject(StatusMessageTypes.failedToFetchRecording.rawValue)
         } else {
             call.resolve(audioRecording.toDictionary())
+        }
+    }
+    
+    @objc func detectSilence() {
+        let decibels = implementation!.getMeters()
+        
+        if (decibels < -35) {
+            silenceDetected += 1
+        } else {
+            silenceDetected = 0
+        }
+        
+        if (silenceDetected > 3) {
+            timer?.invalidate()
+            silenceDetected = 0
+            self.notifyListeners("silenceDetected", data: [:])
         }
     }
     

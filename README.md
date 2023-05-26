@@ -58,7 +58,7 @@ Read about [Setting Permissions](https://capacitorjs.com/docs/android/configurat
 
 * [`checkPermissions()`](#checkpermissions)
 * [`requestPermissions()`](#requestpermissions)
-* [`startRecording()`](#startrecording)
+* [`startRecording(...)`](#startrecording)
 * [`stopRecording()`](#stoprecording)
 * [`enableMicrophone()`](#enablemicrophone)
 * [`disableMicrophone()`](#disablemicrophone)
@@ -96,13 +96,17 @@ Requests microphone permission
 --------------------
 
 
-### startRecording()
+### startRecording(...)
 
 ```typescript
-startRecording() => Promise<void>
+startRecording(options: { silenceDetection: boolean; }) => Promise<void>
 ```
 
 Starts recoding session if no session is in progress
+
+| Param         | Type                                        |
+| ------------- | ------------------------------------------- |
+| **`options`** | <code>{ silenceDetection: boolean; }</code> |
 
 --------------------
 

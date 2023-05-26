@@ -16,7 +16,9 @@ export interface MicrophonePlugin {
      * Starts recoding session if no session is in progress
      * @since 0.0.3
      */
-    startRecording(): Promise<void>;
+    startRecording(options: {
+        silenceDetection: boolean;
+    }): Promise<void>;
     /**
      * Stops recoding session if one is in progress
      * @returns {Promise<AudioRecording>} AudioRecording

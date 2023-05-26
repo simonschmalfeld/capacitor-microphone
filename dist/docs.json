@@ -69,8 +69,14 @@
       },
       {
         "name": "startRecording",
-        "signature": "() => Promise<void>",
-        "parameters": [],
+        "signature": "(options: { silenceDetection: boolean; }) => Promise<void>",
+        "parameters": [
+          {
+            "name": "options",
+            "docs": "",
+            "type": "{ silenceDetection: boolean; }"
+          }
+        ],
         "returns": "Promise<void>",
         "tags": [
           {
