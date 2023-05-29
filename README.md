@@ -58,9 +58,7 @@ Read about [Setting Permissions](https://capacitorjs.com/docs/android/configurat
 
 * [`checkPermissions()`](#checkpermissions)
 * [`requestPermissions()`](#requestpermissions)
-* [`startRecording(...)`](#startrecording)
-* [`stopRecording()`](#stoprecording)
-* [`enableMicrophone()`](#enablemicrophone)
+* [`enableMicrophone(...)`](#enablemicrophone)
 * [`disableMicrophone()`](#disablemicrophone)
 * [Interfaces](#interfaces)
 * [Type Aliases](#type-aliases)
@@ -96,39 +94,17 @@ Requests microphone permission
 --------------------
 
 
-### startRecording(...)
+### enableMicrophone(...)
 
 ```typescript
-startRecording(options: { silenceDetection: boolean; }) => Promise<void>
-```
-
-Starts recoding session if no session is in progress
-
-| Param         | Type                                        |
-| ------------- | ------------------------------------------- |
-| **`options`** | <code>{ silenceDetection: boolean; }</code> |
-
---------------------
-
-
-### stopRecording()
-
-```typescript
-stopRecording() => Promise<AudioRecording>
+enableMicrophone(options: { recordingEnabled: boolean; silenceDetection: boolean; }) => Promise<void>
 ```
 
 Stops recoding session if one is in progress
 
-**Returns:** <code>Promise&lt;<a href="#audiorecording">AudioRecording</a>&gt;</code>
-
---------------------
-
-
-### enableMicrophone()
-
-```typescript
-enableMicrophone() => Promise<void>
-```
+| Param         | Type                                                                   |
+| ------------- | ---------------------------------------------------------------------- |
+| **`options`** | <code>{ recordingEnabled: boolean; silenceDetection: boolean; }</code> |
 
 --------------------
 
@@ -136,8 +112,10 @@ enableMicrophone() => Promise<void>
 ### disableMicrophone()
 
 ```typescript
-disableMicrophone() => Promise<void>
+disableMicrophone() => Promise<AudioRecording>
 ```
+
+**Returns:** <code>Promise&lt;<a href="#audiorecording">AudioRecording</a>&gt;</code>
 
 --------------------
 

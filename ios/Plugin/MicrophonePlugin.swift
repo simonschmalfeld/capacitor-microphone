@@ -8,28 +8,47 @@ import AudioToolbox
  */
 @objc(MicrophonePlugin)
 public class MicrophonePlugin: CAPPlugin {
+    let audioEngine = AVAudioEngine()
+    let bufferSize: AVAudioFrameCount = 245
     private var implementation: Microphone? = nil
     private var audioQueue: AudioQueueRef?
     private var audioBuffer: AudioQueueBufferRef?
-    private var listenerHandle: Any?
     private var analysisBuffer: Array<Any> = []
     private var timer: Timer?
     private var silenceDetected: UInt8 = 0
-    let audioEngine = AVAudioEngine()
-    let bufferSize: AVAudioFrameCount = 245
+    private var file: AVAudioFile?
+    private var audioFilePath: URL!
+    private var record: Bool = false
     
     public override func load() {
         setupAudioEngine()
     }
         
     func setupAudioEngine() {
-        let inputNode = audioEngine.inputNode
-        let inputFormat = inputNode.outputFormat(forBus: 0)
+        do {
+            try AVAudioSession.sharedInstance().setCategory(AVAudioSession.Category.playAndRecord)
+            let ioBufferDuration = 128.0 / 48000.0
+            try AVAudioSession.sharedInstance().setPreferredIOBufferDuration(ioBufferDuration)
+        } catch {
+            assertionFailure("AVAudioSession setup error: \(error)")
+        }
         
+        let inputNode = audioEngine.inputNode
+        let mixerNode = audioEngine.mainMixerNode
+        let k44mixer = AVAudioMixerNode()
+        let inputFormat = inputNode.inputFormat(forBus: 0)
+        let outputFormat = inputNode.outputFormat(forBus: 0)
+
         let recordingFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 8192.0, channels: 1, interleaved: true)
         let formatConverter = AVAudioConverter(from: inputFormat, to: recordingFormat!)
         
-        listenerHandle = inputNode.installTap(onBus: 0, bufferSize: bufferSize, format: inputFormat) { (buffer, _) in
+        let k44format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 48000, channels: 1, interleaved: true)
+        
+        audioEngine.attach(k44mixer)
+        audioEngine.connect(inputNode, to: k44mixer, format: inputFormat)
+        audioEngine.connect(k44mixer, to: mixerNode, format: k44format)
+        
+        inputNode.installTap(onBus: 0, bufferSize: bufferSize, format: outputFormat) { (buffer, _) in
             let pcmBuffer = AVAudioPCMBuffer(pcmFormat: recordingFormat!, frameCapacity: AVAudioFrameCount(recordingFormat!.sampleRate))
             var error: NSError? = nil
 
@@ -49,6 +68,22 @@ public class MicrophonePlugin: CAPPlugin {
                                          by: pcmBuffer!.stride).map{ floatChannelData.pointee[$0] }
                 self.analysisBuffer = Array(channelData.prefix(numericCast(self.bufferSize)))
                 self.notifyListeners("audioDataReceived", data: ["audioData": self.analysisBuffer])
+            }
+        }
+        
+        audioFilePath = getDirectoryToSaveAudioFile().appendingPathComponent("\(UUID().uuidString).wav")
+        try! file = AVAudioFile(forWriting: audioFilePath, settings: k44mixer.outputFormat(forBus: 0).settings)
+
+        k44mixer.installTap(onBus: 0, bufferSize: 1024, format: k44mixer.outputFormat(forBus: 0)) { (buffer, time) in
+            if (self.record == false) {
+                return
+            }
+            
+            do {
+                print("writing")
+                try self.file?.write(from: buffer)
+            } catch {
+                print(NSString(string: "Write failed: \(error)"));
             }
         }
 
@@ -93,87 +128,74 @@ public class MicrophonePlugin: CAPPlugin {
     }
     
     @objc func enableMicrophone(_ call: CAPPluginCall) {
+        let silenceDetection = call.getBool("silenceDetection")
+        let recordingEnabled = call.getBool("recordingEnabled")
+        record = recordingEnabled == true
+        
         try! audioEngine.start()
         call.resolve(["status": StatusMessageTypes.microphoneEnabled.rawValue])
+        
+//
+//        if(!isAudioRecordingPermissionGranted()) {
+//            call.reject(StatusMessageTypes.microphonePermissionNotGranted.rawValue)
+//            return
+//        }
+//
+//        if(implementation != nil) {
+//            call.reject(StatusMessageTypes.recordingInProgress.rawValue)
+//            return
+//        }
+//
+//        implementation = Microphone()
+//        if(implementation == nil) {
+//            call.reject(StatusMessageTypes.cannotRecordOnThisPhone.rawValue)
+//            return
+//        }
+//
+//        let successfullyStartedRecording = implementation!.startRecording()
+//
+//        if successfullyStartedRecording == false {
+//            call.reject(StatusMessageTypes.cannotRecordOnThisPhone.rawValue)
+//            return
+//        }
+//
+//        if (silenceDetection == true) {
+//            DispatchQueue.main.sync {
+//                self.timer?.invalidate()
+//                self.timer = Timer.scheduledTimer(timeInterval: 1.0, target: self, selector: #selector(detectSilence), userInfo: nil, repeats: true)
+//            }
+//        }
     }
     
     @objc func disableMicrophone(_ call: CAPPluginCall) {
-        audioEngine.stop()
-        call.resolve(["status": StatusMessageTypes.microphoneDisabled.rawValue])
-    }
-    
-    @objc func startRecording(_ call: CAPPluginCall) {
-        let silenceDetection = call.getBool("silenceDetection")
-        
-        if(!isAudioRecordingPermissionGranted()) {
-            call.reject(StatusMessageTypes.microphonePermissionNotGranted.rawValue)
-            return
-        }
-        
-        if(implementation != nil) {
-            call.reject(StatusMessageTypes.recordingInProgress.rawValue)
-            return
-        }
-        
-        implementation = Microphone()
-        if(implementation == nil) {
-            call.reject(StatusMessageTypes.cannotRecordOnThisPhone.rawValue)
-            return
-        }
-        
-        let successfullyStartedRecording = implementation!.startRecording()
-        
-        if successfullyStartedRecording == false {
-            call.reject(StatusMessageTypes.cannotRecordOnThisPhone.rawValue)
-            return
-        }
-        
-        if (silenceDetection == true) {
-            DispatchQueue.main.sync {
-                self.timer?.invalidate()
-                self.timer = Timer.scheduledTimer(timeInterval: 1.0, target: self, selector: #selector(detectSilence), userInfo: nil, repeats: true)
-            }
-        }
-        
-        call.resolve(["status": StatusMessageTypes.recordingStared.rawValue])
-    }
-    
-    @objc func stopRecording(_ call: CAPPluginCall) {
-        if(implementation == nil) {
+        if(audioEngine.isRunning == false) {
             call.reject(StatusMessageTypes.noRecordingInProgress.rawValue)
             return
         }
+
+//        DispatchQueue.main.sync {
+//            if (self.timer != nil) {
+//                self.timer?.invalidate()
+//                self.timer = nil
+//            }
+//        }
         
-        DispatchQueue.main.sync {
-            if (self.timer != nil) {
-                self.timer?.invalidate()
-                self.timer = nil
-            }
-        }
+        audioEngine.stop()
+        file = nil
         
-        implementation?.stopRecording()
-        
-        let audioFileUrl = implementation?.getOutputFile()
-        if(audioFileUrl == nil) {
-            implementation = nil
-            call.reject(StatusMessageTypes.failedToFetchRecording.rawValue)
-            return
-        }
-        
-        let webURL = bridge?.portablePath(fromLocalURL: audioFileUrl)
-        let base64String = readFileAsBase64(audioFileUrl)
+        let webURL = bridge?.portablePath(fromLocalURL: audioFilePath)
+        let base64String = readFileAsBase64(audioFilePath)
         
         let audioRecording = AudioRecording(
             base64String: base64String,
             dataUrl: (base64String != nil) ? ("data:audio/pcm;base64," + base64String!) : nil,
-            path: audioFileUrl?.absoluteString,
+            path: audioFilePath?.absoluteString,
             webPath: webURL?.path,
-            duration: getAudioFileDuration(audioFileUrl),
+            duration: getAudioFileDuration(audioFilePath),
             format: ".wav",
             mimeType: "audio/pcm"
         )
-        implementation = nil
-        
+
         if audioRecording.base64String == nil || audioRecording.duration < 0 {
             call.reject(StatusMessageTypes.failedToFetchRecording.rawValue)
         } else {
@@ -182,19 +204,19 @@ public class MicrophonePlugin: CAPPlugin {
     }
     
     @objc func detectSilence() {
-        let decibels = implementation!.getMeters()
-        
-        if (decibels < -35) {
-            silenceDetected += 1
-        } else {
-            silenceDetected = 0
-        }
-        
-        if (silenceDetected > 3) {
-            timer?.invalidate()
-            silenceDetected = 0
-            self.notifyListeners("silenceDetected", data: [:])
-        }
+//        let decibels = implementation!.getMeters()
+//
+//        if (decibels < -35) {
+//            silenceDetected += 1
+//        } else {
+//            silenceDetected = 0
+//        }
+//
+//        if (silenceDetected > 3) {
+//            timer?.invalidate()
+//            silenceDetected = 0
+//            self.notifyListeners("silenceDetected", data: [:])
+//        }
     }
     
     private func isAudioRecordingPermissionGranted() -> Bool {
@@ -220,5 +242,9 @@ public class MicrophonePlugin: CAPPlugin {
             return -1
         }
         return Int(CMTimeGetSeconds(AVURLAsset(url: filePath!).duration) * 1000)
+    }
+    
+    private func getDirectoryToSaveAudioFile() -> URL {
+        return URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
     }
 }

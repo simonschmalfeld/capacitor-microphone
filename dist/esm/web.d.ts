@@ -3,8 +3,6 @@ import type { MicrophonePlugin, PermissionStatus, AudioRecording } from './defin
 export declare class MicrophoneWeb extends WebPlugin implements MicrophonePlugin {
     checkPermissions(): Promise<PermissionStatus>;
     requestPermissions(): Promise<PermissionStatus>;
-    startRecording(): Promise<void>;
-    stopRecording(): Promise<AudioRecording>;
     enableMicrophone(): Promise<void>;
-    disableMicrophone(): Promise<void>;
+    disableMicrophone(): Promise<AudioRecording>;
 }

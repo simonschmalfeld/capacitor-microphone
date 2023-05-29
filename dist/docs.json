@@ -68,36 +68,16 @@
         "slug": "requestpermissions"
       },
       {
-        "name": "startRecording",
-        "signature": "(options: { silenceDetection: boolean; }) => Promise<void>",
+        "name": "enableMicrophone",
+        "signature": "(options: { recordingEnabled: boolean; silenceDetection: boolean; }) => Promise<void>",
         "parameters": [
           {
             "name": "options",
             "docs": "",
-            "type": "{ silenceDetection: boolean; }"
+            "type": "{ recordingEnabled: boolean; silenceDetection: boolean; }"
           }
         ],
         "returns": "Promise<void>",
-        "tags": [
-          {
-            "name": "since",
-            "text": [
-              {
-                "text": "0.0.3",
-                "kind": "text"
-              }
-            ]
-          }
-        ],
-        "docs": "Starts recoding session if no session is in progress",
-        "complexTypes": [],
-        "slug": "startrecording"
-      },
-      {
-        "name": "stopRecording",
-        "signature": "() => Promise<AudioRecording>",
-        "parameters": [],
-        "returns": "Promise<AudioRecording>",
         "tags": [
           {
             "name": "returns",
@@ -119,29 +99,19 @@
           }
         ],
         "docs": "Stops recoding session if one is in progress",
-        "complexTypes": [
-          "AudioRecording"
-        ],
-        "slug": "stoprecording"
-      },
-      {
-        "name": "enableMicrophone",
-        "signature": "() => Promise<void>",
-        "parameters": [],
-        "returns": "Promise<void>",
-        "tags": [],
-        "docs": "",
         "complexTypes": [],
         "slug": "enablemicrophone"
       },
       {
         "name": "disableMicrophone",
-        "signature": "() => Promise<void>",
+        "signature": "() => Promise<AudioRecording>",
         "parameters": [],
-        "returns": "Promise<void>",
+        "returns": "Promise<AudioRecording>",
         "tags": [],
         "docs": "",
-        "complexTypes": [],
+        "complexTypes": [
+          "AudioRecording"
+        ],
         "slug": "disablemicrophone"
       }
     ],
