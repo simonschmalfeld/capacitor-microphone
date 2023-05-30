@@ -1,6 +1,7 @@
 import Capacitor
 import AVFoundation
 import AudioToolbox
+import Accelerate
 
 /**
  * Please read the Capacitor iOS Plugin Development Guide
@@ -10,18 +11,25 @@ import AudioToolbox
 public class MicrophonePlugin: CAPPlugin {
     let audioEngine = AVAudioEngine()
     let bufferSize: AVAudioFrameCount = 245
-    private var implementation: Microphone? = nil
+    let fftMixer = AVAudioMixerNode()
+    let recordingMixer = AVAudioMixerNode()
+    let k48format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 48000.0, channels: 1, interleaved: true)
+    let k16format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16000.0, channels: 1, interleaved: true)
+    let fftFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 8192.0, channels: 1, interleaved: true)
     private var audioQueue: AudioQueueRef?
     private var audioBuffer: AudioQueueBufferRef?
     private var analysisBuffer: Array<Any> = []
-    private var timer: Timer?
-    private var silenceDetected: UInt8 = 0
     private var file: AVAudioFile?
     private var audioFilePath: URL!
-    private var record: Bool = false
+    private var recordingEnabled: Bool = false
+    private var silenceDetection: Bool = false
+    private var inputNode: AVAudioInputNode?
+    private var mixerNode: AVAudioMixerNode?
     
     public override func load() {
-        setupAudioEngine()
+        inputNode = audioEngine.inputNode
+        let session = AVAudioSession.sharedInstance()
+        try! session.setPreferredSampleRate(16000.0)
     }
         
     func setupAudioEngine() {
@@ -33,54 +41,47 @@ public class MicrophonePlugin: CAPPlugin {
             assertionFailure("AVAudioSession setup error: \(error)")
         }
         
-        let inputNode = audioEngine.inputNode
-        let mixerNode = audioEngine.mainMixerNode
-        let k44mixer = AVAudioMixerNode()
-        let inputFormat = inputNode.inputFormat(forBus: 0)
-        let outputFormat = inputNode.outputFormat(forBus: 0)
-
-        let recordingFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 8192.0, channels: 1, interleaved: true)
-        let formatConverter = AVAudioConverter(from: inputFormat, to: recordingFormat!)
+        if (inputNode == nil) {
+            return
+        }
         
-        let k44format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 48000, channels: 1, interleaved: true)
+        let inputFormat = inputNode!.inputFormat(forBus: 0)
         
-        audioEngine.attach(k44mixer)
-        audioEngine.connect(inputNode, to: k44mixer, format: inputFormat)
-        audioEngine.connect(k44mixer, to: mixerNode, format: k44format)
+        audioEngine.attach(fftMixer)
+        audioEngine.attach(recordingMixer)
+        audioEngine.connect(inputNode!, to: recordingMixer, format: inputFormat)
+//        audioEngine.connect(fftMixer, to: recordingMixer, format: fftFormat)
+        audioEngine.connect(recordingMixer, to: audioEngine.mainMixerNode, format: k16format)
         
-        inputNode.installTap(onBus: 0, bufferSize: bufferSize, format: outputFormat) { (buffer, _) in
-            let pcmBuffer = AVAudioPCMBuffer(pcmFormat: recordingFormat!, frameCapacity: AVAudioFrameCount(recordingFormat!.sampleRate))
-            var error: NSError? = nil
+        inputNode!.installTap(onBus: 0, bufferSize: bufferSize, format: inputNode!.outputFormat(forBus: 0)) { (buffer, _) in
+            let pcmBuffer = self.convertBuffer(buffer: buffer, inputFormat: inputFormat, outputFormat: self.fftFormat!)
 
-            let inputBlock: AVAudioConverterInputBlock = {inNumPackets, outStatus in
-                outStatus.pointee = AVAudioConverterInputStatus.haveData
-                return buffer
-            }
-
-            formatConverter?.convert(to: pcmBuffer!, error: &error, withInputFrom: inputBlock)
-
-            if error != nil {
-                print(error!.localizedDescription)
-            }
-
-            else if let floatChannelData = pcmBuffer!.floatChannelData {
-                let channelData = stride(from: 0, to: Int(pcmBuffer!.frameLength),
-                                         by: pcmBuffer!.stride).map{ floatChannelData.pointee[$0] }
+            if let floatChannelData = buffer.floatChannelData {
+                let channelData = stride(from: 0, to: Int(pcmBuffer.frameLength),
+                                         by: pcmBuffer.stride).map{ floatChannelData.pointee[$0] }
                 self.analysisBuffer = Array(channelData.prefix(numericCast(self.bufferSize)))
                 self.notifyListeners("audioDataReceived", data: ["audioData": self.analysisBuffer])
             }
         }
         
         audioFilePath = getDirectoryToSaveAudioFile().appendingPathComponent("\(UUID().uuidString).wav")
-        try! file = AVAudioFile(forWriting: audioFilePath, settings: k44mixer.outputFormat(forBus: 0).settings)
+        try! file = AVAudioFile(forWriting: audioFilePath, settings: recordingMixer.outputFormat(forBus: 0).settings)
 
-        k44mixer.installTap(onBus: 0, bufferSize: 1024, format: k44mixer.outputFormat(forBus: 0)) { (buffer, time) in
-            if (self.record == false) {
+        recordingMixer.installTap(onBus: 0, bufferSize: 2048, format: recordingMixer.outputFormat(forBus: 0)) { (buffer, time) in
+            if (self.recordingEnabled == false) {
                 return
             }
-            
+
+            if (self.silenceDetection == true) {
+                let peak = self.calculatePeakPowerLevel(buffer: buffer)
+                if (peak < 0.05) {
+                    self.notifyListeners("silenceDetected", data: [:])
+                } else {
+                    self.notifyListeners("audioDetected", data: [:])
+                }
+            }
+
             do {
-                print("writing")
                 try self.file?.write(from: buffer)
             } catch {
                 print(NSString(string: "Write failed: \(error)"));
@@ -128,57 +129,33 @@ public class MicrophonePlugin: CAPPlugin {
     }
     
     @objc func enableMicrophone(_ call: CAPPluginCall) {
-        let silenceDetection = call.getBool("silenceDetection")
-        let recordingEnabled = call.getBool("recordingEnabled")
-        record = recordingEnabled == true
+        if(!isAudioRecordingPermissionGranted()) {
+            call.reject(StatusMessageTypes.microphonePermissionNotGranted.rawValue)
+            return
+        }
         
+        recordingEnabled = call.getBool("recordingEnabled") == true
+        silenceDetection = call.getBool("silenceDetection") == true
+        
+        setupAudioEngine()
         try! audioEngine.start()
-        call.resolve(["status": StatusMessageTypes.microphoneEnabled.rawValue])
         
-//
-//        if(!isAudioRecordingPermissionGranted()) {
-//            call.reject(StatusMessageTypes.microphonePermissionNotGranted.rawValue)
-//            return
-//        }
-//
-//        if(implementation != nil) {
-//            call.reject(StatusMessageTypes.recordingInProgress.rawValue)
-//            return
-//        }
-//
-//        implementation = Microphone()
-//        if(implementation == nil) {
-//            call.reject(StatusMessageTypes.cannotRecordOnThisPhone.rawValue)
-//            return
-//        }
-//
-//        let successfullyStartedRecording = implementation!.startRecording()
-//
-//        if successfullyStartedRecording == false {
-//            call.reject(StatusMessageTypes.cannotRecordOnThisPhone.rawValue)
-//            return
-//        }
-//
-//        if (silenceDetection == true) {
-//            DispatchQueue.main.sync {
-//                self.timer?.invalidate()
-//                self.timer = Timer.scheduledTimer(timeInterval: 1.0, target: self, selector: #selector(detectSilence), userInfo: nil, repeats: true)
-//            }
-//        }
+        if audioEngine.isRunning == false {
+            call.reject(StatusMessageTypes.cannotRecordOnThisPhone.rawValue)
+            return
+        }
+        
+        call.resolve(["status": StatusMessageTypes.microphoneEnabled.rawValue])
     }
     
     @objc func disableMicrophone(_ call: CAPPluginCall) {
-        if(audioEngine.isRunning == false) {
+        if(audioEngine.isRunning == false || inputNode == nil) {
             call.reject(StatusMessageTypes.noRecordingInProgress.rawValue)
             return
         }
-
-//        DispatchQueue.main.sync {
-//            if (self.timer != nil) {
-//                self.timer?.invalidate()
-//                self.timer = nil
-//            }
-//        }
+        
+        fftMixer.removeTap(onBus: 0)
+        recordingMixer.removeTap(onBus: 0)
         
         audioEngine.stop()
         file = nil
@@ -201,22 +178,6 @@ public class MicrophonePlugin: CAPPlugin {
         } else {
             call.resolve(audioRecording.toDictionary())
         }
-    }
-    
-    @objc func detectSilence() {
-//        let decibels = implementation!.getMeters()
-//
-//        if (decibels < -35) {
-//            silenceDetected += 1
-//        } else {
-//            silenceDetected = 0
-//        }
-//
-//        if (silenceDetected > 3) {
-//            timer?.invalidate()
-//            silenceDetected = 0
-//            self.notifyListeners("silenceDetected", data: [:])
-//        }
     }
     
     private func isAudioRecordingPermissionGranted() -> Bool {
@@ -246,5 +207,40 @@ public class MicrophonePlugin: CAPPlugin {
     
     private func getDirectoryToSaveAudioFile() -> URL {
         return URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+    }
+    
+    private func calculatePeakPowerLevel(buffer: AVAudioPCMBuffer) -> Float {
+        let channelCount = Int(buffer.format.channelCount)
+        let channels = UnsafeBufferPointer(start: buffer.floatChannelData, count: channelCount)
+        
+        var peak: Float = 0.0
+        
+        for channel in 0..<channelCount {
+            let data = channels[channel]
+            var channelPeak: Float = 0.0
+            vDSP_maxv(data, 1, &channelPeak, vDSP_Length(buffer.frameLength))
+            peak = max(peak, channelPeak)
+        }
+        
+        return peak
+    }
+    
+    private func convertBuffer(buffer: AVAudioPCMBuffer, inputFormat: AVAudioFormat, outputFormat: AVAudioFormat) -> AVAudioPCMBuffer {
+        let pcmBuffer = AVAudioPCMBuffer(pcmFormat: outputFormat, frameCapacity: AVAudioFrameCount(outputFormat.sampleRate))
+        var error: NSError? = nil
+
+        let inputBlock: AVAudioConverterInputBlock = {inNumPackets, outStatus in
+            outStatus.pointee = AVAudioConverterInputStatus.haveData
+            return buffer
+        }
+
+        let formatConverter = AVAudioConverter(from: inputFormat, to: outputFormat)
+        formatConverter?.convert(to: pcmBuffer!, error: &error, withInputFrom: inputBlock)
+
+        if error != nil {
+            print(error!.localizedDescription)
+        }
+
+        return pcmBuffer!
     }
 }
