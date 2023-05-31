@@ -11,7 +11,6 @@ import Accelerate
 public class MicrophonePlugin: CAPPlugin {
     let audioEngine = AVAudioEngine()
     let bufferSize: AVAudioFrameCount = 245
-    let fftMixer = AVAudioMixerNode()
     let recordingMixer = AVAudioMixerNode()
     let k48format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 48000.0, channels: 1, interleaved: true)
     let k16format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16000.0, channels: 1, interleaved: true)
@@ -28,35 +27,32 @@ public class MicrophonePlugin: CAPPlugin {
     
     public override func load() {
         inputNode = audioEngine.inputNode
-        let session = AVAudioSession.sharedInstance()
-        try! session.setPreferredSampleRate(16000.0)
-    }
+        let ioBufferDuration = 128.0 / 48000.0
         
-    func setupAudioEngine() {
         do {
+            try AVAudioSession.sharedInstance().setPreferredSampleRate(16000.0)
             try AVAudioSession.sharedInstance().setCategory(AVAudioSession.Category.playAndRecord)
-            let ioBufferDuration = 128.0 / 48000.0
             try AVAudioSession.sharedInstance().setPreferredIOBufferDuration(ioBufferDuration)
         } catch {
             assertionFailure("AVAudioSession setup error: \(error)")
         }
+    }
         
+    func setupAudioEngine() {
         if (inputNode == nil) {
             return
         }
         
         let inputFormat = inputNode!.inputFormat(forBus: 0)
         
-        audioEngine.attach(fftMixer)
         audioEngine.attach(recordingMixer)
         audioEngine.connect(inputNode!, to: recordingMixer, format: inputFormat)
-//        audioEngine.connect(fftMixer, to: recordingMixer, format: fftFormat)
         audioEngine.connect(recordingMixer, to: audioEngine.mainMixerNode, format: k16format)
         
         inputNode!.installTap(onBus: 0, bufferSize: bufferSize, format: inputNode!.outputFormat(forBus: 0)) { (buffer, _) in
             let pcmBuffer = self.convertBuffer(buffer: buffer, inputFormat: inputFormat, outputFormat: self.fftFormat!)
 
-            if let floatChannelData = buffer.floatChannelData {
+            if let floatChannelData = pcmBuffer.floatChannelData {
                 let channelData = stride(from: 0, to: Int(pcmBuffer.frameLength),
                                          by: pcmBuffer.stride).map{ floatChannelData.pointee[$0] }
                 self.analysisBuffer = Array(channelData.prefix(numericCast(self.bufferSize)))
@@ -154,7 +150,7 @@ public class MicrophonePlugin: CAPPlugin {
             return
         }
         
-        fftMixer.removeTap(onBus: 0)
+        inputNode!.removeTap(onBus: 0)
         recordingMixer.removeTap(onBus: 0)
         
         audioEngine.stop()
