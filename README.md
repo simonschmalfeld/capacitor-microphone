@@ -110,10 +110,8 @@ enableMicrophone(options: { recordingEnabled: boolean; silenceDetection: boolean
 ### disableMicrophone()
 
 ```typescript
-disableMicrophone() => Promise<AudioRecording | void>
+disableMicrophone() => Promise<void>
 ```
-
-**Returns:** <code>Promise&lt;void | <a href="#audiorecording">AudioRecording</a>&gt;</code>
 
 --------------------
 
@@ -126,19 +124,6 @@ disableMicrophone() => Promise<AudioRecording | void>
 | Prop             | Type                                                                            |
 | ---------------- | ------------------------------------------------------------------------------- |
 | **`microphone`** | <code><a href="#microphonepermissionstate">MicrophonePermissionState</a></code> |
-
-
-#### AudioRecording
-
-| Prop               | Type                | Description                                                                                                     |
-| ------------------ | ------------------- | --------------------------------------------------------------------------------------------------------------- |
-| **`base64String`** | <code>string</code> | The base64 encoded string representation of the audio file.                                                     |
-| **`dataUrl`**      | <code>string</code> | The url starting with 'data:audio/aac;base64,' and the base64 encoded string representation of the audio file.  |
-| **`path`**         | <code>string</code> | platform-specific file URL that can be read later using the Filesystem API.                                     |
-| **`webPath`**      | <code>string</code> | webPath returns a path that can be used to set the src attribute of an audio element can be useful for testing. |
-| **`duration`**     | <code>number</code> | recoding duration in milliseconds                                                                               |
-| **`format`**       | <code>string</code> | file extension (only .m4a supported on this version)                                                            |
-| **`mimeType`**     | <code>string</code> | file encoding "audio/aac" (kAudioFormatMPEG4AAC for iOS) (MPEG_4 / AAC for Android)                             |
 
 
 ### Type Aliases

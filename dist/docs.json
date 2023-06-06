@@ -85,14 +85,12 @@
       },
       {
         "name": "disableMicrophone",
-        "signature": "() => Promise<AudioRecording | void>",
+        "signature": "() => Promise<void>",
         "parameters": [],
-        "returns": "Promise<void | AudioRecording>",
+        "returns": "Promise<void>",
         "tags": [],
         "docs": "",
-        "complexTypes": [
-          "AudioRecording"
-        ],
+        "complexTypes": [],
         "slug": "disablemicrophone"
       }
     ],
@@ -114,134 +112,6 @@
             "MicrophonePermissionState"
           ],
           "type": "MicrophonePermissionState"
-        }
-      ]
-    },
-    {
-      "name": "AudioRecording",
-      "slug": "audiorecording",
-      "docs": "",
-      "tags": [],
-      "methods": [],
-      "properties": [
-        {
-          "name": "base64String",
-          "tags": [
-            {
-              "text": [
-                {
-                  "text": "0.0.3",
-                  "kind": "text"
-                }
-              ],
-              "name": "since"
-            }
-          ],
-          "docs": "The base64 encoded string representation of the audio file.",
-          "complexTypes": [],
-          "type": "string | undefined"
-        },
-        {
-          "name": "dataUrl",
-          "tags": [
-            {
-              "text": [
-                {
-                  "text": "0.0.3",
-                  "kind": "text"
-                }
-              ],
-              "name": "since"
-            }
-          ],
-          "docs": "The url starting with 'data:audio/aac;base64,' and the base64 encoded string representation of the audio file.",
-          "complexTypes": [],
-          "type": "string | undefined"
-        },
-        {
-          "name": "path",
-          "tags": [
-            {
-              "text": [
-                {
-                  "text": "0.0.3",
-                  "kind": "text"
-                }
-              ],
-              "name": "since"
-            }
-          ],
-          "docs": "platform-specific file URL that can be read later using the Filesystem API.",
-          "complexTypes": [],
-          "type": "string | undefined"
-        },
-        {
-          "name": "webPath",
-          "tags": [
-            {
-              "text": [
-                {
-                  "text": "0.0.3",
-                  "kind": "text"
-                }
-              ],
-              "name": "since"
-            }
-          ],
-          "docs": "webPath returns a path that can be used to set the src attribute of an audio element can be useful for testing.",
-          "complexTypes": [],
-          "type": "string | undefined"
-        },
-        {
-          "name": "duration",
-          "tags": [
-            {
-              "text": [
-                {
-                  "text": "0.0.3",
-                  "kind": "text"
-                }
-              ],
-              "name": "since"
-            }
-          ],
-          "docs": "recoding duration in milliseconds",
-          "complexTypes": [],
-          "type": "number"
-        },
-        {
-          "name": "format",
-          "tags": [
-            {
-              "text": [
-                {
-                  "text": "0.0.3",
-                  "kind": "text"
-                }
-              ],
-              "name": "since"
-            }
-          ],
-          "docs": "file extension (only .m4a supported on this version)",
-          "complexTypes": [],
-          "type": "string | undefined"
-        },
-        {
-          "name": "mimeType",
-          "tags": [
-            {
-              "text": [
-                {
-                  "text": "0.0.3",
-                  "kind": "text"
-                }
-              ],
-              "name": "since"
-            }
-          ],
-          "docs": "file encoding \"audio/aac\"\n(kAudioFormatMPEG4AAC for iOS) \n(MPEG_4 / AAC for Android)",
-          "complexTypes": [],
-          "type": "string | undefined"
         }
       ]
     }

@@ -172,11 +172,11 @@ public class MicrophonePlugin: CAPPlugin {
             if audioRecording.base64String == nil || audioRecording.duration < 0 {
                 call.reject(StatusMessageTypes.failedToFetchRecording.rawValue)
             } else {
-                call.resolve(audioRecording.toDictionary())
+                self.notifyListeners("recordingAvailable", data: ["recording": audioRecording.toDictionary()])
             }
-        } else {
-            call.resolve(audioRecording.toDictionary())
         }
+        
+        call.resolve(audioRecording.toDictionary())
     }
     
     private func isAudioRecordingPermissionGranted() -> Bool {

@@ -8,6 +8,9 @@ let audioContextGlobal: AudioContext | null;
 let userAudioGlobal: MediaStream | null;
 let micAnalyzerNodeGlobal: AnalyserNode | null;
 let analyzerInterval: number | undefined;
+let recordingEnabled: boolean;
+// let silenceDetection: boolean;
+let mediaRecorder: MediaRecorder;
 
 export class MicrophoneWeb extends WebPlugin implements MicrophonePlugin {
 
@@ -19,7 +22,10 @@ export class MicrophoneWeb extends WebPlugin implements MicrophonePlugin {
     throw this.unimplemented('Not implemented on web.');
   }
 
-  async enableMicrophone(): Promise<void> {
+  async enableMicrophone(options: { recordingEnabled: boolean; silenceDetection: boolean; }): Promise<void> {
+    recordingEnabled = options.recordingEnabled;
+    // silenceDetection = options.silenceDetection;
+
     try {
       if (audioContextGlobal) {
         audioContextGlobal.resume();
@@ -39,13 +45,39 @@ export class MicrophoneWeb extends WebPlugin implements MicrophonePlugin {
           micAnalyzerNodeGlobal?.getFloatTimeDomainData(rawData);
           this.notifyListeners('audioDataReceived', { audioData: rawData });
         }, 50);
+
+        if (recordingEnabled) {
+          mediaRecorder = new MediaRecorder(userAudioGlobal, { mimeType: this.getMimeType(), audioBitsPerSecond: 128000 });
+          mediaRecorder.ondataavailable = (event) => {
+            if (typeof event.data === "undefined") return;
+            if (event.data.size === 0) return;
+
+            // Create a blob file from the event data
+            const recordedBlob = new Blob([event.data], { type: this.getMimeType() });
+            const audioUrl = (window.URL ? URL : webkitURL).createObjectURL(recordedBlob);
+
+            const audioRecording: AudioRecording = {
+              dataUrl: audioUrl,
+              path: audioUrl,
+              webPath: audioUrl,
+              duration: recordedBlob.size,
+              format: '.wav',
+              mimeType: 'audio/pcm',
+              blob: recordedBlob
+            };
+
+            this.notifyListeners('recordingAvailable', { recording: audioRecording });
+          };
+
+          mediaRecorder.start();
+        }
       }
     } catch (e) {
       console.error(e);
     }
   }
 
-  async disableMicrophone(): Promise<AudioRecording | void> {
+  async disableMicrophone(): Promise<void> {
     try {
       const tracks = userAudioGlobal?.getTracks();
       tracks?.forEach((track) => track.stop());
@@ -61,5 +93,14 @@ export class MicrophoneWeb extends WebPlugin implements MicrophonePlugin {
     } catch (e) {
       console.error(e);
     }
+  }
+
+  getMimeType = () => {
+    // Webm is preferred but not supported on iOS
+    if (typeof window !== "undefined" && MediaRecorder.isTypeSupported('audio/webm')) {
+      return 'audio/webm;codecs=opus';
+    }
+
+    return 'audio/mp4';
   }
 }

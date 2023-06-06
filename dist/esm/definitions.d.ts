@@ -16,7 +16,7 @@ export interface MicrophonePlugin {
         recordingEnabled: boolean;
         silenceDetection: boolean;
     }): Promise<void>;
-    disableMicrophone(): Promise<AudioRecording | void>;
+    disableMicrophone(): Promise<void>;
 }
 export interface AudioRecording {
     /**
@@ -63,6 +63,7 @@ export interface AudioRecording {
      * @since 0.0.3
      */
     mimeType?: string;
+    blob?: Blob;
 }
 export declare type MicrophonePermissionState = PermissionState | 'limited';
 export declare enum MicrophonePermissionStateValue {
