@@ -6,7 +6,7 @@ let userAudioGlobal;
 let micAnalyzerNodeGlobal;
 let analyzerInterval;
 let recordingEnabled;
-// let silenceDetection: boolean;
+let silenceDetection;
 let mediaRecorder;
 export class MicrophoneWeb extends WebPlugin {
     constructor() {
@@ -28,46 +28,62 @@ export class MicrophoneWeb extends WebPlugin {
     async enableMicrophone(options) {
         var _a;
         recordingEnabled = options.recordingEnabled;
-        // silenceDetection = options.silenceDetection;
+        silenceDetection = options.silenceDetection;
+        const sampleRate = recordingEnabled ? 16000 : 8192;
         try {
             if (audioContextGlobal) {
                 audioContextGlobal.resume();
                 return;
             }
-            audioContextGlobal = new window.AudioContext({ sampleRate: 8192 });
+            audioContextGlobal = new window.AudioContext({ sampleRate });
             userAudioGlobal = await ((_a = navigator === null || navigator === void 0 ? void 0 : navigator.mediaDevices) === null || _a === void 0 ? void 0 : _a.getUserMedia({ audio: true }));
-            if (!micAnalyzerNodeGlobal) {
-                let sourceNode = audioContextGlobal.createMediaStreamSource(userAudioGlobal);
-                micAnalyzerNodeGlobal = new AnalyserNode(audioContextGlobal, { fftSize: 512 });
-                sourceNode.connect(micAnalyzerNodeGlobal);
-                analyzerInterval = window.setInterval(() => {
-                    let rawData = new Float32Array(245);
-                    micAnalyzerNodeGlobal === null || micAnalyzerNodeGlobal === void 0 ? void 0 : micAnalyzerNodeGlobal.getFloatTimeDomainData(rawData);
-                    this.notifyListeners('audioDataReceived', { audioData: rawData });
-                }, 50);
-                if (recordingEnabled) {
-                    mediaRecorder = new MediaRecorder(userAudioGlobal, { mimeType: this.getMimeType(), audioBitsPerSecond: 128000 });
-                    mediaRecorder.ondataavailable = (event) => {
-                        if (typeof event.data === "undefined")
-                            return;
-                        if (event.data.size === 0)
-                            return;
-                        // Create a blob file from the event data
-                        const recordedBlob = new Blob([event.data], { type: this.getMimeType() });
-                        const audioUrl = (window.URL ? URL : webkitURL).createObjectURL(recordedBlob);
-                        const audioRecording = {
-                            dataUrl: audioUrl,
-                            path: audioUrl,
-                            webPath: audioUrl,
-                            duration: recordedBlob.size,
-                            format: '.wav',
-                            mimeType: 'audio/pcm',
-                            blob: recordedBlob
-                        };
-                        this.notifyListeners('recordingAvailable', { recording: audioRecording });
-                    };
-                    mediaRecorder.start();
+            console.log(audioContextGlobal.sampleRate);
+            if (micAnalyzerNodeGlobal) {
+                return;
+            }
+            let sourceNode = audioContextGlobal.createMediaStreamSource(userAudioGlobal);
+            micAnalyzerNodeGlobal = new AnalyserNode(audioContextGlobal, { fftSize: 512 });
+            sourceNode.connect(micAnalyzerNodeGlobal);
+            analyzerInterval = window.setInterval(() => {
+                let rawData = new Float32Array(245);
+                micAnalyzerNodeGlobal === null || micAnalyzerNodeGlobal === void 0 ? void 0 : micAnalyzerNodeGlobal.getFloatTimeDomainData(rawData);
+                this.notifyListeners('audioDataReceived', { audioData: rawData });
+                if (recordingEnabled && silenceDetection && micAnalyzerNodeGlobal) {
+                    // Compute the max volume level (-Infinity...0)
+                    const fftBins = new Float32Array(micAnalyzerNodeGlobal.frequencyBinCount); // Number of values manipulated for each sample
+                    micAnalyzerNodeGlobal.getFloatFrequencyData(fftBins);
+                    // audioPeakDB varies from -Infinity up to 0
+                    const audioPeakDB = Math.max(...fftBins);
+                    if (audioPeakDB < -50) {
+                        this.notifyListeners('silenceDetected', {});
+                    }
+                    else {
+                        this.notifyListeners('audioDetected', {});
+                    }
                 }
+            }, 50);
+            if (recordingEnabled) {
+                mediaRecorder = new MediaRecorder(userAudioGlobal, { mimeType: this.getMimeType(), audioBitsPerSecond: 128000 });
+                mediaRecorder.ondataavailable = (event) => {
+                    if (typeof event.data === "undefined")
+                        return;
+                    if (event.data.size === 0)
+                        return;
+                    // Create a blob file from the event data
+                    const recordedBlob = new Blob([event.data], { type: this.getMimeType() });
+                    const audioUrl = (window.URL ? URL : webkitURL).createObjectURL(recordedBlob);
+                    const audioRecording = {
+                        dataUrl: audioUrl,
+                        path: audioUrl,
+                        webPath: audioUrl,
+                        duration: recordedBlob.size,
+                        format: '.wav',
+                        mimeType: 'audio/pcm',
+                        blob: recordedBlob
+                    };
+                    this.notifyListeners('recordingAvailable', { recording: audioRecording });
+                };
+                mediaRecorder.start();
             }
         }
         catch (e) {
