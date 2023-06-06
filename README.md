@@ -100,8 +100,6 @@ Requests microphone permission
 enableMicrophone(options: { recordingEnabled: boolean; silenceDetection: boolean; }) => Promise<void>
 ```
 
-Stops recoding session if one is in progress
-
 | Param         | Type                                                                   |
 | ------------- | ---------------------------------------------------------------------- |
 | **`options`** | <code>{ recordingEnabled: boolean; silenceDetection: boolean; }</code> |
@@ -112,10 +110,10 @@ Stops recoding session if one is in progress
 ### disableMicrophone()
 
 ```typescript
-disableMicrophone() => Promise<AudioRecording>
+disableMicrophone() => Promise<AudioRecording | void>
 ```
 
-**Returns:** <code>Promise&lt;<a href="#audiorecording">AudioRecording</a>&gt;</code>
+**Returns:** <code>Promise&lt;void | <a href="#audiorecording">AudioRecording</a>&gt;</code>
 
 --------------------
 

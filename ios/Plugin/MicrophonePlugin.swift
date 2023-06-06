@@ -60,27 +60,25 @@ public class MicrophonePlugin: CAPPlugin {
             }
         }
         
-        audioFilePath = getDirectoryToSaveAudioFile().appendingPathComponent("\(UUID().uuidString).wav")
-        try! file = AVAudioFile(forWriting: audioFilePath, settings: recordingMixer.outputFormat(forBus: 0).settings)
+        if (self.recordingEnabled == true) {
+            audioFilePath = getDirectoryToSaveAudioFile().appendingPathComponent("\(UUID().uuidString).wav")
+            try! file = AVAudioFile(forWriting: audioFilePath, settings: recordingMixer.outputFormat(forBus: 0).settings)
 
-        recordingMixer.installTap(onBus: 0, bufferSize: 2048, format: recordingMixer.outputFormat(forBus: 0)) { (buffer, time) in
-            if (self.recordingEnabled == false) {
-                return
-            }
-
-            if (self.silenceDetection == true) {
-                let peak = self.calculatePeakPowerLevel(buffer: buffer)
-                if (peak < 0.05) {
-                    self.notifyListeners("silenceDetected", data: [:])
-                } else {
-                    self.notifyListeners("audioDetected", data: [:])
+            recordingMixer.installTap(onBus: 0, bufferSize: 2048, format: recordingMixer.outputFormat(forBus: 0)) { (buffer, time) in
+                if (self.silenceDetection == true) {
+                    let peak = self.calculatePeakPowerLevel(buffer: buffer)
+                    if (peak < 0.05) {
+                        self.notifyListeners("silenceDetected", data: [:])
+                    } else {
+                        self.notifyListeners("audioDetected", data: [:])
+                    }
                 }
-            }
 
-            do {
-                try self.file?.write(from: buffer)
-            } catch {
-                print(NSString(string: "Write failed: \(error)"));
+                do {
+                    try self.file?.write(from: buffer)
+                } catch {
+                    print(NSString(string: "Write failed: \(error)"));
+                }
             }
         }
 
@@ -150,10 +148,9 @@ public class MicrophonePlugin: CAPPlugin {
             return
         }
         
-        inputNode!.removeTap(onBus: 0)
-        recordingMixer.removeTap(onBus: 0)
-        
         audioEngine.stop()
+        inputNode!.removeTap(onBus: 0)
+        
         file = nil
         
         let webURL = bridge?.portablePath(fromLocalURL: audioFilePath)
@@ -168,9 +165,15 @@ public class MicrophonePlugin: CAPPlugin {
             format: ".wav",
             mimeType: "audio/pcm"
         )
+        
+        if (recordingEnabled) {
+            recordingMixer.removeTap(onBus: 0)
 
-        if audioRecording.base64String == nil || audioRecording.duration < 0 {
-            call.reject(StatusMessageTypes.failedToFetchRecording.rawValue)
+            if audioRecording.base64String == nil || audioRecording.duration < 0 {
+                call.reject(StatusMessageTypes.failedToFetchRecording.rawValue)
+            } else {
+                call.resolve(audioRecording.toDictionary())
+            }
         } else {
             call.resolve(audioRecording.toDictionary())
         }

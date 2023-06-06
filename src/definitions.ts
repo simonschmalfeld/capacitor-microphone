@@ -16,7 +16,7 @@ export interface MicrophonePlugin {
   requestPermissions(): Promise<PermissionStatus>;
 
   enableMicrophone(options: { recordingEnabled: boolean, silenceDetection: boolean }): Promise<void>
-  disableMicrophone(): Promise<AudioRecording>
+  disableMicrophone(): Promise<AudioRecording | void>
 }
 
 export interface AudioRecording {

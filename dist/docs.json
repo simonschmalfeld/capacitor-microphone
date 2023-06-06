@@ -78,35 +78,16 @@
           }
         ],
         "returns": "Promise<void>",
-        "tags": [
-          {
-            "name": "returns",
-            "text": [
-              {
-                "text": "AudioRecording",
-                "kind": "text"
-              }
-            ]
-          },
-          {
-            "name": "since",
-            "text": [
-              {
-                "text": "0.0.3",
-                "kind": "text"
-              }
-            ]
-          }
-        ],
-        "docs": "Stops recoding session if one is in progress",
+        "tags": [],
+        "docs": "",
         "complexTypes": [],
         "slug": "enablemicrophone"
       },
       {
         "name": "disableMicrophone",
-        "signature": "() => Promise<AudioRecording>",
+        "signature": "() => Promise<AudioRecording | void>",
         "parameters": [],
-        "returns": "Promise<AudioRecording>",
+        "returns": "Promise<void | AudioRecording>",
         "tags": [],
         "docs": "",
         "complexTypes": [

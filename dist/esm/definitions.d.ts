@@ -12,20 +12,11 @@ export interface MicrophonePlugin {
      * @since 0.0.3
      */
     requestPermissions(): Promise<PermissionStatus>;
-    /**
-     * Starts recoding session if no session is in progress
-     * @since 0.0.3
-     */
-    /**
-     * Stops recoding session if one is in progress
-     * @returns {Promise<AudioRecording>} AudioRecording
-     * @since 0.0.3
-     */
     enableMicrophone(options: {
         recordingEnabled: boolean;
         silenceDetection: boolean;
     }): Promise<void>;
-    disableMicrophone(): Promise<AudioRecording>;
+    disableMicrophone(): Promise<AudioRecording | void>;
 }
 export interface AudioRecording {
     /**
