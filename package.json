@@ -52,6 +52,7 @@
     "prepare": "npm run build"
   },
   "devDependencies": {
+    "@types/dom-mediacapture-record": "^1.0.16",
     "@capacitor/android": "^3.0.0",
     "@capacitor/core": "^3.0.0",
     "@capacitor/docgen": "0.0.16",
@@ -68,8 +69,7 @@
     "typescript": "~4.0.3"
   },
   "peerDependencies": {
-    "@capacitor/core": "next",
-    "@types/dom-mediacapture-record": "^1.0.16"
+    "@capacitor/core": "next"
   },
   "prettier": "@ionic/prettier-config",
   "swiftlint": "@ionic/swiftlint-config",
