@@ -52,7 +52,6 @@ var capacitorMicrophone = (function (exports, core) {
                 }
                 audioContextGlobal = new window.AudioContext({ sampleRate });
                 userAudioGlobal = await ((_a = navigator === null || navigator === void 0 ? void 0 : navigator.mediaDevices) === null || _a === void 0 ? void 0 : _a.getUserMedia({ audio: true }));
-                console.log(audioContextGlobal.sampleRate);
                 if (micAnalyzerNodeGlobal) {
                     return;
                 }
