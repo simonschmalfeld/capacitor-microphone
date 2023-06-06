@@ -40,13 +40,15 @@ export class MicrophoneWeb extends WebPlugin {
             if (micAnalyzerNodeGlobal) {
                 return;
             }
-            let sourceNode = audioContextGlobal.createMediaStreamSource(userAudioGlobal);
+            const sourceNode = audioContextGlobal.createMediaStreamSource(userAudioGlobal);
             micAnalyzerNodeGlobal = new AnalyserNode(audioContextGlobal, { fftSize: 512 });
             sourceNode.connect(micAnalyzerNodeGlobal);
             analyzerInterval = window.setInterval(() => {
-                let rawData = new Float32Array(245);
-                micAnalyzerNodeGlobal === null || micAnalyzerNodeGlobal === void 0 ? void 0 : micAnalyzerNodeGlobal.getFloatTimeDomainData(rawData);
-                this.notifyListeners('audioDataReceived', { audioData: rawData });
+                const audioData = new Float32Array(245);
+                micAnalyzerNodeGlobal === null || micAnalyzerNodeGlobal === void 0 ? void 0 : micAnalyzerNodeGlobal.getFloatTimeDomainData(audioData);
+                const frequencyData = new Uint8Array(256);
+                micAnalyzerNodeGlobal === null || micAnalyzerNodeGlobal === void 0 ? void 0 : micAnalyzerNodeGlobal.getByteFrequencyData(frequencyData);
+                this.notifyListeners('audioDataReceived', { audioData, frequencyData });
                 if (recordingEnabled && silenceDetection && micAnalyzerNodeGlobal) {
                     // Compute the max volume level (-Infinity...0)
                     const fftBins = new Float32Array(micAnalyzerNodeGlobal.frequencyBinCount); // Number of values manipulated for each sample

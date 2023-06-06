@@ -40,14 +40,18 @@ export class MicrophoneWeb extends WebPlugin implements MicrophonePlugin {
         return;
       }
 
-      let sourceNode = audioContextGlobal.createMediaStreamSource(userAudioGlobal);
+      const sourceNode = audioContextGlobal.createMediaStreamSource(userAudioGlobal);
       micAnalyzerNodeGlobal = new AnalyserNode(audioContextGlobal, { fftSize: 512 });
       sourceNode.connect(micAnalyzerNodeGlobal);
 
       analyzerInterval = window.setInterval(() => {
-        let rawData = new Float32Array(245);
-        micAnalyzerNodeGlobal?.getFloatTimeDomainData(rawData);
-        this.notifyListeners('audioDataReceived', { audioData: rawData });
+        const audioData = new Float32Array(245);
+        micAnalyzerNodeGlobal?.getFloatTimeDomainData(audioData);
+
+        const frequencyData = new Uint8Array(256);
+        micAnalyzerNodeGlobal?.getByteFrequencyData(frequencyData);
+
+        this.notifyListeners('audioDataReceived', { audioData, frequencyData });
 
         if (recordingEnabled && silenceDetection && micAnalyzerNodeGlobal) {
           // Compute the max volume level (-Infinity...0)
