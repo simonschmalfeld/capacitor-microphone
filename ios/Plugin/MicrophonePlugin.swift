@@ -49,6 +49,7 @@ public class MicrophonePlugin: CAPPlugin {
         audioEngine.connect(inputNode!, to: recordingMixer, format: inputFormat)
         audioEngine.connect(recordingMixer, to: audioEngine.mainMixerNode, format: k16format)
         
+        inputNode!.removeTap(onBus: 0)
         inputNode!.installTap(onBus: 0, bufferSize: bufferSize, format: inputNode!.outputFormat(forBus: 0)) { (buffer, _) in
             let pcmBuffer = self.convertBuffer(buffer: buffer, inputFormat: inputFormat, outputFormat: self.fftFormat!)
 
@@ -149,6 +150,8 @@ public class MicrophonePlugin: CAPPlugin {
         }
         
         audioEngine.stop()
+        audioEngine.reset()
+        audioEngine.detach(recordingMixer)
         inputNode!.removeTap(onBus: 0)
         
         file = nil
