@@ -151,36 +151,31 @@ public class MicrophonePlugin: CAPPlugin {
             return
         }
         
+        if (recordingEnabled) {
+            recordingMixer.removeTap(onBus: 0)
+        }
+        
         inputNode!.removeTap(onBus: 0)
         audioEngine.stop()
         audioEngine.reset()
+        audioEngine.detach(recordingMixer)
         
-        file = nil
-        
-        let webURL = bridge?.portablePath(fromLocalURL: audioFilePath)
-        let base64String = readFileAsBase64(audioFilePath)
-        
-        let audioRecording = AudioRecording(
-            base64String: base64String,
-            dataUrl: (base64String != nil) ? ("data:audio/pcm;base64," + base64String!) : nil,
-            path: audioFilePath?.absoluteString,
-            webPath: webURL?.path,
-            duration: getAudioFileDuration(audioFilePath),
-            format: ".wav",
-            mimeType: "audio/pcm"
-        )
-        
-        if (recordingEnabled) {
-            recordingMixer.removeTap(onBus: 0)
-            audioEngine.detach(recordingMixer)
+        let audioRecording = generateAudioRecording()
 
-            if audioRecording.base64String == nil || audioRecording.duration < 0 {
-                call.reject(StatusMessageTypes.failedToFetchRecording.rawValue)
-            } else {
-                self.notifyListeners("recordingAvailable", data: ["recording": audioRecording.toDictionary()])
-            }
+        if audioRecording.base64String == nil || audioRecording.duration < 0 {
+            call.reject(StatusMessageTypes.failedToFetchRecording.rawValue)
+        } else {
+            call.resolve(audioRecording.toDictionary())
+        }
+    }
+    
+    @objc func requestData(_ call: CAPPluginCall) {
+        if(audioEngine.isRunning == false || inputNode == nil) {
+            call.reject(StatusMessageTypes.noRecordingInProgress.rawValue)
+            return
         }
         
+        let audioRecording = generateAudioRecording()
         call.resolve(audioRecording.toDictionary())
     }
     
@@ -251,5 +246,28 @@ public class MicrophonePlugin: CAPPlugin {
         }
 
         return pcmBuffer
+    }
+    
+    private func generateAudioRecording() -> AudioRecording {
+        file = nil
+        
+        let webURL = bridge?.portablePath(fromLocalURL: audioFilePath)
+        let base64String = readFileAsBase64(audioFilePath)
+        
+        let audioRecording = AudioRecording(
+            base64String: base64String,
+            dataUrl: (base64String != nil) ? ("data:audio/pcm;base64," + base64String!) : nil,
+            path: audioFilePath?.absoluteString,
+            webPath: webURL?.path,
+            duration: getAudioFileDuration(audioFilePath),
+            format: ".wav",
+            mimeType: "audio/pcm"
+        )
+        
+        if audioRecording.base64String != nil && audioRecording.duration >= 0 {
+            self.notifyListeners("recordingAvailable", data: ["recording": audioRecording.toDictionary()])
+        }
+        
+        return audioRecording
     }
 }

@@ -60,6 +60,7 @@ Read about [Setting Permissions](https://capacitorjs.com/docs/android/configurat
 * [`requestPermissions()`](#requestpermissions)
 * [`enableMicrophone(...)`](#enablemicrophone)
 * [`disableMicrophone()`](#disablemicrophone)
+* [`requestData()`](#requestdata)
 * [Interfaces](#interfaces)
 * [Type Aliases](#type-aliases)
 
@@ -111,6 +112,15 @@ enableMicrophone(options: { recordingEnabled: boolean; silenceDetection: boolean
 
 ```typescript
 disableMicrophone() => Promise<void>
+```
+
+--------------------
+
+
+### requestData()
+
+```typescript
+requestData() => Promise<void>
 ```
 
 --------------------

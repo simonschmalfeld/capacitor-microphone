@@ -24,16 +24,6 @@ var capacitorMicrophone = (function (exports, core) {
     let silenceDetection;
     let mediaRecorder;
     class MicrophoneWeb extends core.WebPlugin {
-        constructor() {
-            super(...arguments);
-            this.getMimeType = () => {
-                // Webm is preferred but not supported on iOS
-                if (typeof window !== "undefined" && MediaRecorder.isTypeSupported('audio/webm')) {
-                    return 'audio/webm;codecs=opus';
-                }
-                return 'audio/mp4';
-            };
-        }
         async checkPermissions() {
             throw this.unimplemented('Not implemented on web.');
         }
@@ -121,6 +111,16 @@ var capacitorMicrophone = (function (exports, core) {
             catch (e) {
                 console.error(e);
             }
+        }
+        async requestData() {
+            mediaRecorder.requestData();
+        }
+        getMimeType() {
+            // Webm is preferred but not supported on iOS
+            if (typeof window !== "undefined" && MediaRecorder.isTypeSupported('audio/webm')) {
+                return 'audio/webm;codecs=opus';
+            }
+            return 'audio/mp4';
         }
     }
 

@@ -8,4 +8,5 @@ CAP_PLUGIN(MicrophonePlugin, "Microphone",
            CAP_PLUGIN_METHOD(requestPermissions, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(enableMicrophone, CAPPluginReturnPromise);
            CAP_PLUGIN_METHOD(disableMicrophone, CAPPluginReturnPromise);
+           CAP_PLUGIN_METHOD(requestData, CAPPluginReturnPromise);
 )

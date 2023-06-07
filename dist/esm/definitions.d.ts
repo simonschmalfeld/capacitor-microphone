@@ -17,6 +17,7 @@ export interface MicrophonePlugin {
         silenceDetection: boolean;
     }): Promise<void>;
     disableMicrophone(): Promise<void>;
+    requestData(): Promise<void>;
 }
 export interface AudioRecording {
     /**

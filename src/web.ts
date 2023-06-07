@@ -117,7 +117,11 @@ export class MicrophoneWeb extends WebPlugin implements MicrophonePlugin {
     }
   }
 
-  getMimeType = () => {
+  async requestData(): Promise<void> {
+    mediaRecorder.requestData();
+  }
+
+  getMimeType(): string {
     // Webm is preferred but not supported on iOS
     if (typeof window !== "undefined" && MediaRecorder.isTypeSupported('audio/webm')) {
       return 'audio/webm;codecs=opus';

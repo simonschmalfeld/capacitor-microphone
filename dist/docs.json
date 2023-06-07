@@ -92,6 +92,16 @@
         "docs": "",
         "complexTypes": [],
         "slug": "disablemicrophone"
+      },
+      {
+        "name": "requestData",
+        "signature": "() => Promise<void>",
+        "parameters": [],
+        "returns": "Promise<void>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [],
+        "slug": "requestdata"
       }
     ],
     "properties": []
