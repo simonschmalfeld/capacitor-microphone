@@ -12,7 +12,6 @@ public class MicrophonePlugin: CAPPlugin {
     let audioEngine = AVAudioEngine()
     let bufferSize: AVAudioFrameCount = 245
     let recordingMixer = AVAudioMixerNode()
-    let k48format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 48000.0, channels: 1, interleaved: true)
     let k16format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16000.0, channels: 1, interleaved: true)
     let fftFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 8192.0, channels: 1, interleaved: true)
     private var audioQueue: AudioQueueRef?
@@ -24,6 +23,9 @@ public class MicrophonePlugin: CAPPlugin {
     private var silenceDetection: Bool = false
     private var inputNode: AVAudioInputNode?
     private var mixerNode: AVAudioMixerNode?
+    private var formatConverter: AVAudioConverter?
+    private var pcmBuffer: AVAudioPCMBuffer?
+    private var channelData: [Float]?
     
     public override func load() {
         inputNode = audioEngine.inputNode
@@ -51,12 +53,12 @@ public class MicrophonePlugin: CAPPlugin {
         
         inputNode!.removeTap(onBus: 0)
         inputNode!.installTap(onBus: 0, bufferSize: bufferSize, format: inputNode!.outputFormat(forBus: 0)) { (buffer, _) in
-            let pcmBuffer = self.convertBuffer(buffer: buffer, inputFormat: inputFormat, outputFormat: self.fftFormat!)
-
+            let pcmBuffer = self.convertBuffer(buffer: buffer, inputFormat: inputFormat, outputFormat: self.fftFormat!)!
+            
             if let floatChannelData = pcmBuffer.floatChannelData {
-                let channelData = stride(from: 0, to: Int(pcmBuffer.frameLength),
+                self.channelData = stride(from: 0, to: Int(pcmBuffer.frameLength),
                                          by: pcmBuffer.stride).map{ floatChannelData.pointee[$0] }
-                self.analysisBuffer = Array(channelData.prefix(numericCast(self.bufferSize)))
+                self.analysisBuffer = Array(self.channelData!.prefix(numericCast(self.bufferSize)))
                 self.notifyListeners("audioDataReceived", data: ["audioData": self.analysisBuffer])
             }
         }
@@ -149,10 +151,9 @@ public class MicrophonePlugin: CAPPlugin {
             return
         }
         
+        inputNode!.removeTap(onBus: 0)
         audioEngine.stop()
         audioEngine.reset()
-        audioEngine.detach(recordingMixer)
-        inputNode!.removeTap(onBus: 0)
         
         file = nil
         
@@ -171,6 +172,7 @@ public class MicrophonePlugin: CAPPlugin {
         
         if (recordingEnabled) {
             recordingMixer.removeTap(onBus: 0)
+            audioEngine.detach(recordingMixer)
 
             if audioRecording.base64String == nil || audioRecording.duration < 0 {
                 call.reject(StatusMessageTypes.failedToFetchRecording.rawValue)
@@ -227,22 +229,27 @@ public class MicrophonePlugin: CAPPlugin {
         return peak
     }
     
-    private func convertBuffer(buffer: AVAudioPCMBuffer, inputFormat: AVAudioFormat, outputFormat: AVAudioFormat) -> AVAudioPCMBuffer {
-        let pcmBuffer = AVAudioPCMBuffer(pcmFormat: outputFormat, frameCapacity: AVAudioFrameCount(outputFormat.sampleRate))
-        var error: NSError? = nil
+    private func convertBuffer(buffer: AVAudioPCMBuffer, inputFormat: AVAudioFormat, outputFormat: AVAudioFormat) -> AVAudioPCMBuffer? {
+        if (formatConverter == nil) {
+            formatConverter = AVAudioConverter(from: inputFormat, to: outputFormat)
+        }
+        
+        if (pcmBuffer == nil) {
+            pcmBuffer = AVAudioPCMBuffer(pcmFormat: outputFormat, frameCapacity: AVAudioFrameCount(outputFormat.sampleRate))
+        }
+        var error: NSError?
 
-        let inputBlock: AVAudioConverterInputBlock = {inNumPackets, outStatus in
+        let inputBlock: AVAudioConverterInputBlock = { inNumPackets, outStatus in
             outStatus.pointee = AVAudioConverterInputStatus.haveData
             return buffer
         }
 
-        let formatConverter = AVAudioConverter(from: inputFormat, to: outputFormat)
-        formatConverter?.convert(to: pcmBuffer!, error: &error, withInputFrom: inputBlock)
+        formatConverter!.convert(to: pcmBuffer!, error: &error, withInputFrom: inputBlock)
 
-        if error != nil {
-            print(error!.localizedDescription)
+        if let error = error {
+            print(error.localizedDescription)
         }
 
-        return pcmBuffer!
+        return pcmBuffer
     }
 }
