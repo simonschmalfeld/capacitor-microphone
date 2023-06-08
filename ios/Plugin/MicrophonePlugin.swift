@@ -11,50 +11,39 @@ import Accelerate
 public class MicrophonePlugin: CAPPlugin {
     let audioEngine = AVAudioEngine()
     let bufferSize: AVAudioFrameCount = 245
-    let recordingMixer = AVAudioMixerNode()
-    let k16format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16000.0, channels: 1, interleaved: true)
     let fftFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 8192.0, channels: 1, interleaved: true)
-    private var audioQueue: AudioQueueRef?
-    private var audioBuffer: AudioQueueBufferRef?
+    let recordingMixer = AVAudioMixerNode()
+    let recordingFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16000.0, channels: 1, interleaved: true)
     private var analysisBuffer: Array<Any> = []
     private var file: AVAudioFile?
     private var audioFilePath: URL!
     private var recordingEnabled: Bool = false
     private var silenceDetection: Bool = false
-    private var inputNode: AVAudioInputNode?
-    private var mixerNode: AVAudioMixerNode?
     private var formatConverter: AVAudioConverter?
     private var pcmBuffer: AVAudioPCMBuffer?
     private var channelData: [Float]?
     
     public override func load() {
-        inputNode = audioEngine.inputNode
-        let ioBufferDuration = 128.0 / 48000.0
-        
         do {
-            try AVAudioSession.sharedInstance().setPreferredSampleRate(16000.0)
-            try AVAudioSession.sharedInstance().setCategory(AVAudioSession.Category.playAndRecord)
+            let ioBufferDuration = 128.0 / 16000.0
             try AVAudioSession.sharedInstance().setPreferredIOBufferDuration(ioBufferDuration)
+            try AVAudioSession.sharedInstance().setPreferredSampleRate(16000.0)
         } catch {
             assertionFailure("AVAudioSession setup error: \(error)")
         }
     }
-        
+     
     func setupAudioEngine() {
-        if (inputNode == nil) {
-            return
-        }
-        
-        let inputFormat = inputNode!.inputFormat(forBus: 0)
+        let inputFormat = audioEngine.inputNode.inputFormat(forBus: 0)
         
         audioEngine.attach(recordingMixer)
-        audioEngine.connect(inputNode!, to: recordingMixer, format: inputFormat)
-        audioEngine.connect(recordingMixer, to: audioEngine.mainMixerNode, format: k16format)
+        audioEngine.connect(audioEngine.inputNode, to: recordingMixer, format: inputFormat)
+        audioEngine.connect(recordingMixer, to: audioEngine.mainMixerNode, format: recordingFormat)
         
-        inputNode!.removeTap(onBus: 0)
-        inputNode!.installTap(onBus: 0, bufferSize: bufferSize, format: inputNode!.outputFormat(forBus: 0)) { (buffer, _) in
+        audioEngine.inputNode.removeTap(onBus: 0)
+        audioEngine.inputNode.installTap(onBus: 0, bufferSize: bufferSize, format: inputFormat) { (buffer, _) in
             let pcmBuffer = self.convertBuffer(buffer: buffer, inputFormat: inputFormat, outputFormat: self.fftFormat!)!
-            
+          
             if let floatChannelData = pcmBuffer.floatChannelData {
                 self.channelData = stride(from: 0, to: Int(pcmBuffer.frameLength),
                                          by: pcmBuffer.stride).map{ floatChannelData.pointee[$0] }
@@ -146,7 +135,7 @@ public class MicrophonePlugin: CAPPlugin {
     }
     
     @objc func disableMicrophone(_ call: CAPPluginCall) {
-        if(audioEngine.isRunning == false || inputNode == nil) {
+        if(audioEngine.isRunning == false) {
             call.reject(StatusMessageTypes.noRecordingInProgress.rawValue)
             return
         }
@@ -155,7 +144,7 @@ public class MicrophonePlugin: CAPPlugin {
             recordingMixer.removeTap(onBus: 0)
         }
         
-        inputNode!.removeTap(onBus: 0)
+        audioEngine.inputNode.removeTap(onBus: 0)
         audioEngine.stop()
         audioEngine.reset()
         audioEngine.detach(recordingMixer)
@@ -170,7 +159,7 @@ public class MicrophonePlugin: CAPPlugin {
     }
     
     @objc func requestData(_ call: CAPPluginCall) {
-        if(audioEngine.isRunning == false || inputNode == nil) {
+        if(audioEngine.isRunning == false) {
             call.reject(StatusMessageTypes.noRecordingInProgress.rawValue)
             return
         }
