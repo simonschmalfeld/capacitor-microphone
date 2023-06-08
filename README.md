@@ -61,6 +61,7 @@ Read about [Setting Permissions](https://capacitorjs.com/docs/android/configurat
 * [`enableMicrophone(...)`](#enablemicrophone)
 * [`disableMicrophone()`](#disablemicrophone)
 * [`requestData()`](#requestdata)
+* [`getAudioContext()`](#getaudiocontext)
 * [Interfaces](#interfaces)
 * [Type Aliases](#type-aliases)
 
@@ -120,8 +121,19 @@ disableMicrophone() => Promise<void>
 ### requestData()
 
 ```typescript
-requestData() => Promise<void>
+requestData() => void
 ```
+
+--------------------
+
+
+### getAudioContext()
+
+```typescript
+getAudioContext() => Promise<AudioContext | null>
+```
+
+**Returns:** <code>Promise&lt;any&gt;</code>
 
 --------------------
 

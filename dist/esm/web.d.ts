@@ -8,6 +8,7 @@ export declare class MicrophoneWeb extends WebPlugin implements MicrophonePlugin
         silenceDetection: boolean;
     }): Promise<void>;
     disableMicrophone(): Promise<void>;
-    requestData(): Promise<void>;
+    requestData(): void;
+    getAudioContext(): Promise<AudioContext | null>;
     getMimeType(): string;
 }

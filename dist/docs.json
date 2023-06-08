@@ -95,13 +95,25 @@
       },
       {
         "name": "requestData",
-        "signature": "() => Promise<void>",
+        "signature": "() => void",
         "parameters": [],
-        "returns": "Promise<void>",
+        "returns": "void",
         "tags": [],
         "docs": "",
         "complexTypes": [],
         "slug": "requestdata"
+      },
+      {
+        "name": "getAudioContext",
+        "signature": "() => Promise<AudioContext | null>",
+        "parameters": [],
+        "returns": "Promise<any>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [
+          "AudioContext"
+        ],
+        "slug": "getaudiocontext"
       }
     ],
     "properties": []

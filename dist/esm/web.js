@@ -17,6 +17,7 @@ export class MicrophoneWeb extends WebPlugin {
     }
     async enableMicrophone(options) {
         var _a;
+        console.log('ENABLE MICROPHONE');
         recordingEnabled = options.recordingEnabled;
         silenceDetection = options.silenceDetection;
         const sampleRate = recordingEnabled ? 16000 : 8192;
@@ -82,6 +83,7 @@ export class MicrophoneWeb extends WebPlugin {
         }
     }
     async disableMicrophone() {
+        console.log('DISABLE MICROPHONE');
         try {
             const tracks = userAudioGlobal === null || userAudioGlobal === void 0 ? void 0 : userAudioGlobal.getTracks();
             tracks === null || tracks === void 0 ? void 0 : tracks.forEach((track) => track.stop());
@@ -97,8 +99,11 @@ export class MicrophoneWeb extends WebPlugin {
             console.error(e);
         }
     }
-    async requestData() {
+    requestData() {
         mediaRecorder.requestData();
+    }
+    getAudioContext() {
+        return Promise.resolve(audioContextGlobal);
     }
     getMimeType() {
         // Webm is preferred but not supported on iOS

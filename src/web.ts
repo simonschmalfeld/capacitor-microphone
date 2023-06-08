@@ -23,6 +23,7 @@ export class MicrophoneWeb extends WebPlugin implements MicrophonePlugin {
   }
 
   async enableMicrophone(options: { recordingEnabled: boolean; silenceDetection: boolean; }): Promise<void> {
+    console.log('ENABLE MICROPHONE');
     recordingEnabled = options.recordingEnabled;
     silenceDetection = options.silenceDetection;
     const sampleRate = recordingEnabled ? 16000 : 8192
@@ -100,6 +101,7 @@ export class MicrophoneWeb extends WebPlugin implements MicrophonePlugin {
   }
 
   async disableMicrophone(): Promise<void> {
+    console.log('DISABLE MICROPHONE');
     try {
       const tracks = userAudioGlobal?.getTracks();
       tracks?.forEach((track) => track.stop());
@@ -117,8 +119,12 @@ export class MicrophoneWeb extends WebPlugin implements MicrophonePlugin {
     }
   }
 
-  async requestData(): Promise<void> {
+  requestData(): void {
     mediaRecorder.requestData();
+  }
+
+  getAudioContext(): Promise<AudioContext | null> {
+    return Promise.resolve(audioContextGlobal);
   }
 
   getMimeType(): string {
