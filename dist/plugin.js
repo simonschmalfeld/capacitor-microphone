@@ -32,7 +32,6 @@ var capacitorMicrophone = (function (exports, core) {
         }
         async enableMicrophone(options) {
             var _a;
-            console.log('ENABLE MICROPHONE');
             recordingEnabled = options.recordingEnabled;
             silenceDetection = options.silenceDetection;
             const sampleRate = recordingEnabled ? 16000 : 8192;

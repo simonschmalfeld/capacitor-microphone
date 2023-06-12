@@ -23,7 +23,6 @@ export class MicrophoneWeb extends WebPlugin implements MicrophonePlugin {
   }
 
   async enableMicrophone(options: { recordingEnabled: boolean; silenceDetection: boolean; }): Promise<void> {
-    console.log('ENABLE MICROPHONE');
     recordingEnabled = options.recordingEnabled;
     silenceDetection = options.silenceDetection;
     const sampleRate = recordingEnabled ? 16000 : 8192

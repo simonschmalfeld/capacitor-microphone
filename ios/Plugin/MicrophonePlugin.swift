@@ -32,7 +32,6 @@ public class MicrophonePlugin: CAPPlugin {
     }
      
     func setupAudioEngine() {
-        print(AVAudioSession.sharedInstance().ioBufferDuration)
         let inputFormat = audioEngine.inputNode.inputFormat(forBus: 0)
         
         audioEngine.attach(recordingMixer)
@@ -124,10 +123,11 @@ public class MicrophonePlugin: CAPPlugin {
         silenceDetection = call.getBool("silenceDetection") == true
         
         setupAudioEngine()
-        try! audioEngine.start()
         
-        if audioEngine.isRunning == false {
-            call.reject(StatusMessageTypes.cannotRecordOnThisPhone.rawValue)
+        do {
+            try audioEngine.start()
+        } catch {
+            call.reject(error.localizedDescription)
             return
         }
         
@@ -136,26 +136,21 @@ public class MicrophonePlugin: CAPPlugin {
     
     @objc func disableMicrophone(_ call: CAPPluginCall) {
         if(audioEngine.isRunning == false) {
-            call.reject(StatusMessageTypes.noRecordingInProgress.rawValue)
+            call.resolve(["status": StatusMessageTypes.noRecordingInProgress.rawValue])
             return
         }
         
         if (recordingEnabled) {
             recordingMixer.removeTap(onBus: 0)
+            audioEngine.detach(recordingMixer)
         }
         
         audioEngine.inputNode.removeTap(onBus: 0)
         audioEngine.stop()
         audioEngine.reset()
-        audioEngine.detach(recordingMixer)
         
-        let audioRecording = generateAudioRecording()
-
-        if audioRecording.base64String == nil || audioRecording.duration < 0 {
-            call.reject(StatusMessageTypes.failedToFetchRecording.rawValue)
-        } else {
-            call.resolve(audioRecording.toDictionary())
-        }
+        _ = generateAudioRecording()
+        call.resolve(["status": StatusMessageTypes.microphoneDisabled.rawValue])
     }
     
     @objc func requestData(_ call: CAPPluginCall) {
