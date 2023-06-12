@@ -25,8 +25,7 @@ public class MicrophonePlugin: CAPPlugin {
     
     public override func load() {
         do {
-            let ioBufferDuration = 128.0 / 16000.0
-            try AVAudioSession.sharedInstance().setPreferredIOBufferDuration(ioBufferDuration)
+            try AVAudioSession.sharedInstance().setPreferredIOBufferDuration(0.005)
             try AVAudioSession.sharedInstance().setPreferredSampleRate(16000.0)
         } catch {
             assertionFailure("AVAudioSession setup error: \(error)")
@@ -41,7 +40,7 @@ public class MicrophonePlugin: CAPPlugin {
         audioEngine.connect(recordingMixer, to: audioEngine.mainMixerNode, format: recordingFormat)
         
         audioEngine.inputNode.removeTap(onBus: 0)
-        audioEngine.inputNode.installTap(onBus: 0, bufferSize: bufferSize, format: inputFormat) { (buffer, _) in
+        audioEngine.inputNode.installTap(onBus: 0, bufferSize: AVAudioFrameCount(bufferSize), format: inputFormat) { (buffer, _) in
             let pcmBuffer = self.convertBuffer(buffer: buffer, inputFormat: inputFormat, outputFormat: self.fftFormat!)!
           
             if let floatChannelData = pcmBuffer.floatChannelData {
@@ -50,6 +49,9 @@ public class MicrophonePlugin: CAPPlugin {
                 self.analysisBuffer = Array(self.channelData!.prefix(numericCast(self.bufferSize)))
                 self.notifyListeners("audioDataReceived", data: ["audioData": self.analysisBuffer])
             }
+            
+            let currentDateTime = Date()
+            print(currentDateTime.timeIntervalSinceReferenceDate)
         }
         
         if (self.recordingEnabled == true) {
