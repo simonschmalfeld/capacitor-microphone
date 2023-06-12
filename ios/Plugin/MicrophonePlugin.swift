@@ -10,7 +10,6 @@ import Accelerate
 @objc(MicrophonePlugin)
 public class MicrophonePlugin: CAPPlugin {
     let audioEngine = AVAudioEngine()
-    let bufferSize: AVAudioFrameCount = 245
     let fftFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 8192.0, channels: 1, interleaved: true)
     let recordingMixer = AVAudioMixerNode()
     let recordingFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16000.0, channels: 1, interleaved: true)
@@ -33,6 +32,7 @@ public class MicrophonePlugin: CAPPlugin {
     }
      
     func setupAudioEngine() {
+        print(AVAudioSession.sharedInstance().ioBufferDuration)
         let inputFormat = audioEngine.inputNode.inputFormat(forBus: 0)
         
         audioEngine.attach(recordingMixer)
@@ -40,18 +40,16 @@ public class MicrophonePlugin: CAPPlugin {
         audioEngine.connect(recordingMixer, to: audioEngine.mainMixerNode, format: recordingFormat)
         
         audioEngine.inputNode.removeTap(onBus: 0)
-        audioEngine.inputNode.installTap(onBus: 0, bufferSize: AVAudioFrameCount(bufferSize), format: inputFormat) { (buffer, _) in
+        audioEngine.inputNode.installTap(onBus: 0, bufferSize: AVAudioFrameCount(1024), format: inputFormat) { (buffer, _) in
+            buffer.frameLength = 1024
             let pcmBuffer = self.convertBuffer(buffer: buffer, inputFormat: inputFormat, outputFormat: self.fftFormat!)!
           
             if let floatChannelData = pcmBuffer.floatChannelData {
                 self.channelData = stride(from: 0, to: Int(pcmBuffer.frameLength),
                                          by: pcmBuffer.stride).map{ floatChannelData.pointee[$0] }
-                self.analysisBuffer = Array(self.channelData!.prefix(numericCast(self.bufferSize)))
+                self.analysisBuffer = Array(self.channelData!.prefix(245))
                 self.notifyListeners("audioDataReceived", data: ["audioData": self.analysisBuffer])
             }
-            
-            let currentDateTime = Date()
-            print(currentDateTime.timeIntervalSinceReferenceDate)
         }
         
         if (self.recordingEnabled == true) {
