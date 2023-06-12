@@ -40,8 +40,8 @@ public class MicrophonePlugin: CAPPlugin {
         audioEngine.connect(recordingMixer, to: audioEngine.mainMixerNode, format: recordingFormat)
         
         audioEngine.inputNode.removeTap(onBus: 0)
-        audioEngine.inputNode.installTap(onBus: 0, bufferSize: AVAudioFrameCount(1024), format: inputFormat) { (buffer, _) in
-            buffer.frameLength = 1024
+        audioEngine.inputNode.installTap(onBus: 0, bufferSize: AVAudioFrameCount(512), format: inputFormat) { (buffer, _) in
+            buffer.frameLength = 512
             let pcmBuffer = self.convertBuffer(buffer: buffer, inputFormat: inputFormat, outputFormat: self.fftFormat!)!
           
             if let floatChannelData = pcmBuffer.floatChannelData {
@@ -56,7 +56,7 @@ public class MicrophonePlugin: CAPPlugin {
             audioFilePath = getDirectoryToSaveAudioFile().appendingPathComponent("\(UUID().uuidString).wav")
             try! file = AVAudioFile(forWriting: audioFilePath, settings: recordingMixer.outputFormat(forBus: 0).settings)
 
-            recordingMixer.installTap(onBus: 0, bufferSize: 2048, format: recordingMixer.outputFormat(forBus: 0)) { (buffer, time) in
+            recordingMixer.installTap(onBus: 0, bufferSize: AVAudioFrameCount(2048), format: recordingMixer.outputFormat(forBus: 0)) { (buffer, time) in
                 if (self.silenceDetection == true) {
                     let peak = self.calculatePeakPowerLevel(buffer: buffer)
                     if (peak < 0.05) {
