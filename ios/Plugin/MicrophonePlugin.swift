@@ -16,22 +16,21 @@ public class MicrophonePlugin: CAPPlugin {
     private var analysisBuffer: Array<Any> = []
     private var file: AVAudioFile?
     private var audioFilePath: URL!
-    private var recordingEnabled: Bool = false
-    private var silenceDetection: Bool = false
-    private var formatConverter: AVAudioConverter?
     private var pcmBuffer: AVAudioPCMBuffer?
     private var channelData: [Float]?
     
-    public override func load() {
+    func setupAudioEngine(_ recordingEnabled: Bool, _ silenceDetection: Bool) {
+        let audioSession = AVAudioSession.sharedInstance()
+        
         do {
-            try AVAudioSession.sharedInstance().setPreferredIOBufferDuration(0.005)
-            try AVAudioSession.sharedInstance().setPreferredSampleRate(16000.0)
+            try audioSession.setCategory(.playAndRecord, options: [])
+            try audioSession.setPreferredIOBufferDuration(0.005)
+            try audioSession.setPreferredSampleRate(16000.0)
+            try audioSession.setActive(true)
         } catch {
             assertionFailure("AVAudioSession setup error: \(error)")
         }
-    }
-     
-    func setupAudioEngine() {
+        
         let inputFormat = audioEngine.inputNode.inputFormat(forBus: 0)
         
         audioEngine.attach(recordingMixer)
@@ -51,12 +50,12 @@ public class MicrophonePlugin: CAPPlugin {
             }
         }
         
-        if (self.recordingEnabled == true) {
+        if (recordingEnabled == true) {
             audioFilePath = getDirectoryToSaveAudioFile().appendingPathComponent("\(UUID().uuidString).wav")
             try! file = AVAudioFile(forWriting: audioFilePath, settings: recordingMixer.outputFormat(forBus: 0).settings)
 
             recordingMixer.installTap(onBus: 0, bufferSize: AVAudioFrameCount(2048), format: recordingMixer.outputFormat(forBus: 0)) { (buffer, time) in
-                if (self.silenceDetection == true) {
+                if (silenceDetection == true) {
                     let peak = self.calculatePeakPowerLevel(buffer: buffer)
                     if (peak < 0.05) {
                         self.notifyListeners("silenceDetected", data: [:])
@@ -119,10 +118,10 @@ public class MicrophonePlugin: CAPPlugin {
             return
         }
         
-        recordingEnabled = call.getBool("recordingEnabled") == true
-        silenceDetection = call.getBool("silenceDetection") == true
+        let recordingEnabled = call.getBool("recordingEnabled") == true
+        let silenceDetection = call.getBool("silenceDetection") == true
         
-        setupAudioEngine()
+        setupAudioEngine(recordingEnabled, silenceDetection)
         
         do {
             try audioEngine.start()
@@ -140,11 +139,8 @@ public class MicrophonePlugin: CAPPlugin {
             return
         }
         
-        if (recordingEnabled) {
-            recordingMixer.removeTap(onBus: 0)
-            audioEngine.detach(recordingMixer)
-        }
-        
+        recordingMixer.removeTap(onBus: 0)
+        audioEngine.detach(recordingMixer)
         audioEngine.inputNode.removeTap(onBus: 0)
         audioEngine.stop()
         audioEngine.reset()
@@ -209,10 +205,6 @@ public class MicrophonePlugin: CAPPlugin {
     }
     
     private func convertBuffer(buffer: AVAudioPCMBuffer, inputFormat: AVAudioFormat, outputFormat: AVAudioFormat) -> AVAudioPCMBuffer? {
-        if (formatConverter == nil) {
-            formatConverter = AVAudioConverter(from: inputFormat, to: outputFormat)
-        }
-        
         if (pcmBuffer == nil) {
             pcmBuffer = AVAudioPCMBuffer(pcmFormat: outputFormat, frameCapacity: AVAudioFrameCount(outputFormat.sampleRate))
         }
@@ -223,6 +215,7 @@ public class MicrophonePlugin: CAPPlugin {
             return buffer
         }
 
+        let formatConverter = AVAudioConverter(from: inputFormat, to: outputFormat)
         formatConverter!.convert(to: pcmBuffer!, error: &error, withInputFrom: inputBlock)
 
         if let error = error {
