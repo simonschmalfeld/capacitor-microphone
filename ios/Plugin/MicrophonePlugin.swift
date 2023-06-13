@@ -12,7 +12,7 @@ public class MicrophonePlugin: CAPPlugin {
     let audioEngine = AVAudioEngine()
     let fftFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 8192.0, channels: 1, interleaved: true)
     let recordingMixer = AVAudioMixerNode()
-    let recordingFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16000.0, channels: 1, interleaved: true)
+    let recordingFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 48000.0, channels: 1, interleaved: true)
     private var analysisBuffer: Array<Any> = []
     private var file: AVAudioFile?
     private var audioFilePath: URL!
@@ -23,15 +23,20 @@ public class MicrophonePlugin: CAPPlugin {
         let audioSession = AVAudioSession.sharedInstance()
         
         do {
-            try audioSession.setCategory(.playAndRecord, options: [])
+            try audioSession.setCategory(.playAndRecord, options: [.mixWithOthers])
             try audioSession.setPreferredIOBufferDuration(0.005)
-            try audioSession.setPreferredSampleRate(16000.0)
+            
+            if (recordingEnabled) {
+                try audioSession.setPreferredSampleRate(16000.0)
+            }
+            
             try audioSession.setActive(true)
         } catch {
             assertionFailure("AVAudioSession setup error: \(error)")
         }
         
         let inputFormat = audioEngine.inputNode.inputFormat(forBus: 0)
+        print(inputFormat)
         
         audioEngine.attach(recordingMixer)
         audioEngine.connect(audioEngine.inputNode, to: recordingMixer, format: inputFormat)
@@ -144,6 +149,14 @@ public class MicrophonePlugin: CAPPlugin {
         audioEngine.inputNode.removeTap(onBus: 0)
         audioEngine.stop()
         audioEngine.reset()
+        
+        let audioSession = AVAudioSession.sharedInstance()
+        
+        do {
+            try audioSession.setActive(false)
+        } catch {
+            print(error)
+        }
         
         _ = generateAudioRecording()
         call.resolve(["status": StatusMessageTypes.microphoneDisabled.rawValue])
