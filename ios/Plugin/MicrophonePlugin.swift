@@ -25,11 +25,12 @@ public class MicrophonePlugin: CAPPlugin {
         let audioSession = AVAudioSession.sharedInstance()
         
         do {
-            try audioSession.setCategory(.playAndRecord, options: [.mixWithOthers])
             try audioSession.setPreferredIOBufferDuration(0.005)
             
             if (recordingEnabled) {
                 try audioSession.setPreferredSampleRate(16000.0)
+            } else {
+                try audioSession.setCategory(.playAndRecord, options: [.mixWithOthers])
             }
             
             try audioSession.setActive(true)
