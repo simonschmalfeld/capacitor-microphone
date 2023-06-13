@@ -12,7 +12,8 @@ public class MicrophonePlugin: CAPPlugin {
     let audioEngine = AVAudioEngine()
     let fftFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 8192.0, channels: 1, interleaved: true)
     let recordingMixer = AVAudioMixerNode()
-    let recordingFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 48000.0, channels: 1, interleaved: true)
+    let recordingFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16000.0, channels: 1, interleaved: true)
+    private var recordingEnabled: Bool = false
     private var analysisBuffer: Array<Any> = []
     private var file: AVAudioFile?
     private var audioFilePath: URL!
@@ -20,6 +21,7 @@ public class MicrophonePlugin: CAPPlugin {
     private var channelData: [Float]?
     
     func setupAudioEngine(_ recordingEnabled: Bool, _ silenceDetection: Bool) {
+        self.recordingEnabled = recordingEnabled
         let audioSession = AVAudioSession.sharedInstance()
         
         do {
@@ -38,9 +40,11 @@ public class MicrophonePlugin: CAPPlugin {
         let inputFormat = audioEngine.inputNode.inputFormat(forBus: 0)
         print(inputFormat)
         
-        audioEngine.attach(recordingMixer)
-        audioEngine.connect(audioEngine.inputNode, to: recordingMixer, format: inputFormat)
-        audioEngine.connect(recordingMixer, to: audioEngine.mainMixerNode, format: recordingFormat)
+        if (recordingEnabled) {
+            audioEngine.attach(recordingMixer)
+            audioEngine.connect(audioEngine.inputNode, to: recordingMixer, format: inputFormat)
+            audioEngine.connect(recordingMixer, to: audioEngine.mainMixerNode, format: recordingFormat)
+        }
         
         audioEngine.inputNode.removeTap(onBus: 0)
         audioEngine.inputNode.installTap(onBus: 0, bufferSize: AVAudioFrameCount(512), format: inputFormat) { (buffer, _) in
@@ -55,7 +59,7 @@ public class MicrophonePlugin: CAPPlugin {
             }
         }
         
-        if (recordingEnabled == true) {
+        if (recordingEnabled) {
             audioFilePath = getDirectoryToSaveAudioFile().appendingPathComponent("\(UUID().uuidString).wav")
             try! file = AVAudioFile(forWriting: audioFilePath, settings: recordingMixer.outputFormat(forBus: 0).settings)
 
@@ -144,8 +148,11 @@ public class MicrophonePlugin: CAPPlugin {
             return
         }
         
-        recordingMixer.removeTap(onBus: 0)
-        audioEngine.detach(recordingMixer)
+        if (self.recordingEnabled) {
+            recordingMixer.removeTap(onBus: 0)
+            audioEngine.detach(recordingMixer)
+        }
+        
         audioEngine.inputNode.removeTap(onBus: 0)
         audioEngine.stop()
         audioEngine.reset()
