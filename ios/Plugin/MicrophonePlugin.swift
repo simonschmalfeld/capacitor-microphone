@@ -48,8 +48,8 @@ public class MicrophonePlugin: CAPPlugin {
         }
         
         audioEngine.inputNode.removeTap(onBus: 0)
-        audioEngine.inputNode.installTap(onBus: 0, bufferSize: AVAudioFrameCount(512), format: inputFormat) { (buffer, _) in
-            buffer.frameLength = 512
+        audioEngine.inputNode.installTap(onBus: 0, bufferSize: AVAudioFrameCount(1024), format: inputFormat) { (buffer, _) in
+            buffer.frameLength = 1024
             let pcmBuffer = self.convertBuffer(buffer: buffer, inputFormat: inputFormat, outputFormat: self.fftFormat!)!
           
             if let floatChannelData = pcmBuffer.floatChannelData {
