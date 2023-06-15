@@ -16,7 +16,6 @@ public class MicrophonePlugin: CAPPlugin {
     let audioEngine = AVAudioEngine()
     let recordingMixer = AVAudioMixerNode()
     let fftFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 8192.0, channels: 1, interleaved: true)
-    let recordingFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16000.0, channels: 1, interleaved: true)
     private var recordingEnabled: Bool = false
     private var analysisBuffer: Array<Any> = []
     private var file: AVAudioFile?
@@ -30,10 +29,8 @@ public class MicrophonePlugin: CAPPlugin {
         
         do {
             if (recordingEnabled) {
-                try audioSession.setPreferredSampleRate(16000.0)
                 try audioSession.setCategory(.playAndRecord, options: [])
             } else {
-                try audioSession.setPreferredSampleRate(48000.0)
                 try audioSession.setCategory(.playAndRecord, options: [.mixWithOthers])
             }
             
@@ -43,12 +40,11 @@ public class MicrophonePlugin: CAPPlugin {
         }
         
         let inputFormat = audioEngine.inputNode.inputFormat(forBus: 0)
-        print(inputFormat)
         
         if (recordingEnabled) {
             audioEngine.attach(recordingMixer)
             audioEngine.connect(audioEngine.inputNode, to: recordingMixer, format: inputFormat)
-            audioEngine.connect(recordingMixer, to: audioEngine.mainMixerNode, format: recordingFormat)
+            audioEngine.connect(recordingMixer, to: audioEngine.mainMixerNode, format: recordingMixer.inputFormat(forBus: 0))
         }
         
         audioEngine.inputNode.removeTap(onBus: 0)
@@ -163,6 +159,7 @@ public class MicrophonePlugin: CAPPlugin {
         
         audioEngine.inputNode.removeTap(onBus: 0)
         audioEngine.stop()
+        audioEngine.reset()
         
         let audioSession = AVAudioSession.sharedInstance()
         
