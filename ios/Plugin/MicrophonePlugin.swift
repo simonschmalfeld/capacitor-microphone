@@ -31,7 +31,9 @@ public class MicrophonePlugin: CAPPlugin {
         do {
             if (recordingEnabled) {
                 try audioSession.setPreferredSampleRate(16000.0)
+                try audioSession.setCategory(.playAndRecord, options: [])
             } else {
+                try audioSession.setPreferredSampleRate(48000.0)
                 try audioSession.setCategory(.playAndRecord, options: [.mixWithOthers])
             }
             
@@ -153,12 +155,14 @@ public class MicrophonePlugin: CAPPlugin {
         
         if (self.recordingEnabled) {
             recordingMixer.removeTap(onBus: 0)
+            audioEngine.disconnectNodeInput(audioEngine.mainMixerNode)
+            audioEngine.disconnectNodeInput(recordingMixer)
+            audioEngine.disconnectNodeInput(audioEngine.inputNode)
             audioEngine.detach(recordingMixer)
         }
         
         audioEngine.inputNode.removeTap(onBus: 0)
         audioEngine.stop()
-        audioEngine.reset()
         
         let audioSession = AVAudioSession.sharedInstance()
         
