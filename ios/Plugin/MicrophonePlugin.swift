@@ -9,9 +9,13 @@ import Accelerate
  */
 @objc(MicrophonePlugin)
 public class MicrophonePlugin: CAPPlugin {
+    let formantBufferSize = 245
+    let analysisBufferSize = 1024
+    let recordingBufferSize = 2048
+    let minimumVolume: Float = 0.05
     let audioEngine = AVAudioEngine()
-    let fftFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 8192.0, channels: 1, interleaved: true)
     let recordingMixer = AVAudioMixerNode()
+    let fftFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 8192.0, channels: 1, interleaved: true)
     let recordingFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16000.0, channels: 1, interleaved: true)
     private var recordingEnabled: Bool = false
     private var analysisBuffer: Array<Any> = []
@@ -25,8 +29,6 @@ public class MicrophonePlugin: CAPPlugin {
         let audioSession = AVAudioSession.sharedInstance()
         
         do {
-            try audioSession.setPreferredIOBufferDuration(0.005)
-            
             if (recordingEnabled) {
                 try audioSession.setPreferredSampleRate(16000.0)
             } else {
@@ -48,14 +50,14 @@ public class MicrophonePlugin: CAPPlugin {
         }
         
         audioEngine.inputNode.removeTap(onBus: 0)
-        audioEngine.inputNode.installTap(onBus: 0, bufferSize: AVAudioFrameCount(1024), format: inputFormat) { (buffer, _) in
-            buffer.frameLength = 1024
+        audioEngine.inputNode.installTap(onBus: 0, bufferSize: AVAudioFrameCount(analysisBufferSize), format: inputFormat) { (buffer, _) in
+            buffer.frameLength = AVAudioFrameCount(self.analysisBufferSize)
             let pcmBuffer = self.convertBuffer(buffer: buffer, inputFormat: inputFormat, outputFormat: self.fftFormat!)!
           
             if let floatChannelData = pcmBuffer.floatChannelData {
                 self.channelData = stride(from: 0, to: Int(pcmBuffer.frameLength),
                                          by: pcmBuffer.stride).map{ floatChannelData.pointee[$0] }
-                self.analysisBuffer = Array(self.channelData!.prefix(245))
+                self.analysisBuffer = Array(self.channelData!.prefix(self.formantBufferSize))
                 self.notifyListeners("audioDataReceived", data: ["audioData": self.analysisBuffer])
             }
         }
@@ -64,10 +66,10 @@ public class MicrophonePlugin: CAPPlugin {
             audioFilePath = getDirectoryToSaveAudioFile().appendingPathComponent("\(UUID().uuidString).wav")
             try! file = AVAudioFile(forWriting: audioFilePath, settings: recordingMixer.outputFormat(forBus: 0).settings)
 
-            recordingMixer.installTap(onBus: 0, bufferSize: AVAudioFrameCount(2048), format: recordingMixer.outputFormat(forBus: 0)) { (buffer, time) in
+            recordingMixer.installTap(onBus: 0, bufferSize: AVAudioFrameCount(recordingBufferSize), format: recordingMixer.outputFormat(forBus: 0)) { (buffer, time) in
                 if (silenceDetection == true) {
                     let peak = self.calculatePeakPowerLevel(buffer: buffer)
-                    if (peak < 0.05) {
+                    if (peak < self.minimumVolume) {
                         self.notifyListeners("silenceDetected", data: [:])
                     } else {
                         self.notifyListeners("audioDetected", data: [:])
