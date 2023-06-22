@@ -31,7 +31,7 @@ export class MicrophoneWeb extends WebPlugin {
                 return;
             }
             const sourceNode = audioContextGlobal.createMediaStreamSource(userAudioGlobal);
-            micAnalyzerNodeGlobal = new AnalyserNode(audioContextGlobal, { fftSize: 512 });
+            micAnalyzerNodeGlobal = new AnalyserNode(audioContextGlobal, { fftSize: 256 });
             sourceNode.connect(micAnalyzerNodeGlobal);
             analyzerInterval = window.setInterval(() => {
                 const audioData = new Float32Array(245);
@@ -52,7 +52,7 @@ export class MicrophoneWeb extends WebPlugin {
                         this.notifyListeners('audioDetected', {});
                     }
                 }
-            }, 50);
+            }, 10);
             if (recordingEnabled) {
                 mediaRecorder = new MediaRecorder(userAudioGlobal, { mimeType: this.getMimeType(), audioBitsPerSecond: 128000 });
                 mediaRecorder.ondataavailable = (event) => {
@@ -82,8 +82,10 @@ export class MicrophoneWeb extends WebPlugin {
         }
     }
     async disableMicrophone() {
-        console.log('DISABLE MICROPHONE');
         try {
+            if (recordingEnabled) {
+                mediaRecorder.stop();
+            }
             const tracks = userAudioGlobal === null || userAudioGlobal === void 0 ? void 0 : userAudioGlobal.getTracks();
             tracks === null || tracks === void 0 ? void 0 : tracks.forEach((track) => track.stop());
             userAudioGlobal = null;

@@ -41,7 +41,7 @@ export class MicrophoneWeb extends WebPlugin implements MicrophonePlugin {
       }
 
       const sourceNode = audioContextGlobal.createMediaStreamSource(userAudioGlobal);
-      micAnalyzerNodeGlobal = new AnalyserNode(audioContextGlobal, { fftSize: 512 });
+      micAnalyzerNodeGlobal = new AnalyserNode(audioContextGlobal, { fftSize: 256 });
       sourceNode.connect(micAnalyzerNodeGlobal);
 
       analyzerInterval = window.setInterval(() => {
@@ -67,7 +67,7 @@ export class MicrophoneWeb extends WebPlugin implements MicrophonePlugin {
             this.notifyListeners('audioDetected', {});
           }
         }
-      }, 50);
+      }, 10);
 
       if (recordingEnabled) {
         mediaRecorder = new MediaRecorder(userAudioGlobal, { mimeType: this.getMimeType(), audioBitsPerSecond: 128000 });
@@ -100,8 +100,10 @@ export class MicrophoneWeb extends WebPlugin implements MicrophonePlugin {
   }
 
   async disableMicrophone(): Promise<void> {
-    console.log('DISABLE MICROPHONE');
     try {
+      if (recordingEnabled) {
+        mediaRecorder.stop();
+      }
       const tracks = userAudioGlobal?.getTracks();
       tracks?.forEach((track) => track.stop());
       userAudioGlobal = null;
