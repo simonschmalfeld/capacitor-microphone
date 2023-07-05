@@ -70,25 +70,7 @@ var capacitorMicrophone = (function (exports, core) {
                 }, 10);
                 if (recordingEnabled) {
                     mediaRecorder = new MediaRecorder(userAudioGlobal, { mimeType: this.getMimeType(), audioBitsPerSecond: 128000 });
-                    mediaRecorder.ondataavailable = (event) => {
-                        if (typeof event.data === "undefined")
-                            return;
-                        if (event.data.size === 0)
-                            return;
-                        // Create a blob file from the event data
-                        const recordedBlob = new Blob([event.data], { type: this.getMimeType() });
-                        const audioUrl = (window.URL ? URL : webkitURL).createObjectURL(recordedBlob);
-                        const audioRecording = {
-                            dataUrl: audioUrl,
-                            path: audioUrl,
-                            webPath: audioUrl,
-                            duration: recordedBlob.size,
-                            format: '.wav',
-                            mimeType: 'audio/pcm',
-                            blob: recordedBlob
-                        };
-                        this.notifyListeners('recordingAvailable', { recording: audioRecording });
-                    };
+                    mediaRecorder.ondataavailable = (e) => this.handleDataAvailable(e);
                     mediaRecorder.start();
                 }
             }
@@ -116,7 +98,13 @@ var capacitorMicrophone = (function (exports, core) {
             }
         }
         requestData() {
-            mediaRecorder.requestData();
+            if (!userAudioGlobal) {
+                throw 'No audio context';
+            }
+            mediaRecorder.stop();
+            mediaRecorder = new MediaRecorder(userAudioGlobal, { mimeType: this.getMimeType(), audioBitsPerSecond: 128000 });
+            mediaRecorder.ondataavailable = (e) => this.handleDataAvailable(e);
+            mediaRecorder.start();
         }
         getAudioContext() {
             return Promise.resolve(audioContextGlobal);
@@ -127,6 +115,25 @@ var capacitorMicrophone = (function (exports, core) {
                 return 'audio/webm;codecs=opus';
             }
             return 'audio/mp4';
+        }
+        handleDataAvailable(event) {
+            if (typeof event.data === "undefined")
+                return;
+            if (event.data.size === 0)
+                return;
+            // Create a blob file from the event data
+            const recordedBlob = new Blob([event.data], { type: this.getMimeType() });
+            const audioUrl = (window.URL ? URL : webkitURL).createObjectURL(recordedBlob);
+            const audioRecording = {
+                dataUrl: audioUrl,
+                path: audioUrl,
+                webPath: audioUrl,
+                duration: recordedBlob.size,
+                format: '.wav',
+                mimeType: 'audio/pcm',
+                blob: recordedBlob
+            };
+            this.notifyListeners('recordingAvailable', { recording: audioRecording });
         }
     }
 

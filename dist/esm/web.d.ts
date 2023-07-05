@@ -1,3 +1,4 @@
+/// <reference types="dom-mediacapture-record" />
 import { WebPlugin } from '@capacitor/core';
 import type { MicrophonePlugin, PermissionStatus } from './definitions';
 export declare class MicrophoneWeb extends WebPlugin implements MicrophonePlugin {
@@ -11,4 +12,5 @@ export declare class MicrophoneWeb extends WebPlugin implements MicrophonePlugin
     requestData(): void;
     getAudioContext(): Promise<AudioContext | null>;
     getMimeType(): string;
+    handleDataAvailable(event: BlobEvent): void;
 }

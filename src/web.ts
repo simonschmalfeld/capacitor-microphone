@@ -71,27 +71,7 @@ export class MicrophoneWeb extends WebPlugin implements MicrophonePlugin {
 
       if (recordingEnabled) {
         mediaRecorder = new MediaRecorder(userAudioGlobal, { mimeType: this.getMimeType(), audioBitsPerSecond: 128000 });
-        mediaRecorder.ondataavailable = (event) => {
-          if (typeof event.data === "undefined") return;
-          if (event.data.size === 0) return;
-
-          // Create a blob file from the event data
-          const recordedBlob = new Blob([event.data], { type: this.getMimeType() });
-          const audioUrl = (window.URL ? URL : webkitURL).createObjectURL(recordedBlob);
-
-          const audioRecording: AudioRecording = {
-            dataUrl: audioUrl,
-            path: audioUrl,
-            webPath: audioUrl,
-            duration: recordedBlob.size,
-            format: '.wav',
-            mimeType: 'audio/pcm',
-            blob: recordedBlob
-          };
-
-          this.notifyListeners('recordingAvailable', { recording: audioRecording });
-        };
-
+        mediaRecorder.ondataavailable = (e) => this.handleDataAvailable(e);
         mediaRecorder.start();
       }
     } catch (e) {
@@ -121,7 +101,14 @@ export class MicrophoneWeb extends WebPlugin implements MicrophonePlugin {
   }
 
   requestData(): void {
-    mediaRecorder.requestData();
+    if (!userAudioGlobal) {
+      throw 'No audio context';
+    }
+    
+    mediaRecorder.stop();
+    mediaRecorder = new MediaRecorder(userAudioGlobal, { mimeType: this.getMimeType(), audioBitsPerSecond: 128000 });
+    mediaRecorder.ondataavailable = (e) => this.handleDataAvailable(e);
+    mediaRecorder.start();
   }
 
   getAudioContext(): Promise<AudioContext | null> {
@@ -135,5 +122,26 @@ export class MicrophoneWeb extends WebPlugin implements MicrophonePlugin {
     }
 
     return 'audio/mp4';
+  }
+
+  handleDataAvailable(event: BlobEvent): void {
+    if (typeof event.data === "undefined") return;
+    if (event.data.size === 0) return;
+
+    // Create a blob file from the event data
+    const recordedBlob = new Blob([event.data], { type: this.getMimeType() });
+    const audioUrl = (window.URL ? URL : webkitURL).createObjectURL(recordedBlob);
+
+    const audioRecording: AudioRecording = {
+      dataUrl: audioUrl,
+      path: audioUrl,
+      webPath: audioUrl,
+      duration: recordedBlob.size,
+      format: '.wav',
+      mimeType: 'audio/pcm',
+      blob: recordedBlob
+    };
+
+    this.notifyListeners('recordingAvailable', { recording: audioRecording });
   }
 }
