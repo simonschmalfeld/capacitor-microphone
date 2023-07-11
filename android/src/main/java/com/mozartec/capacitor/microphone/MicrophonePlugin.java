@@ -1,10 +1,17 @@
 package com.mozartec.capacitor.microphone;
 
 import android.Manifest;
+import android.content.pm.PackageManager;
+import android.media.AudioFormat;
+import android.media.AudioRecord;
 import android.media.MediaPlayer;
+import android.media.MediaRecorder;
 import android.net.Uri;
+import android.os.Environment;
 import android.util.Base64;
 import android.util.Log;
+
+import androidx.core.app.ActivityCompat;
 
 import com.getcapacitor.FileUtils;
 import com.getcapacitor.JSArray;
@@ -12,6 +19,7 @@ import com.getcapacitor.JSObject;
 import com.getcapacitor.PermissionState;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
+import com.getcapacitor.PluginHandle;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.annotation.Permission;
@@ -22,6 +30,8 @@ import org.json.JSONException;
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.List;
@@ -37,8 +47,27 @@ public class MicrophonePlugin extends Plugin {
 
     // Permission alias constants
     static final String MICROPHONE = "microphone";
+    private static final String TAG = "Microphone";
 
     private Microphone implementation;
+
+    private AudioRecord audioRecord;
+    private int RECORDER_SAMPLE_RATE = 44100;
+    private int AUDIO_SOURCE = MediaRecorder.AudioSource.MIC;
+    //for raw audio can use 
+    private int RAW_AUDIO_SOURCE = MediaRecorder.AudioSource.UNPROCESSED;
+    private int CHANNEL_CONFIG = AudioFormat.CHANNEL_IN_STEREO;
+    private int AUDIO_FORMAT = AudioFormat.ENCODING_PCM_16BIT;
+    private int BUFFER_SIZE_RECORDING = AudioRecord.getMinBufferSize(RECORDER_SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT);
+    private boolean isRecordingAudio = false;
+    private String fileName = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath() + "/$filename" + ".pcm";
+
+    private void setupAudioEngine() {
+        if (ActivityCompat.checkSelfPermission(this.getContext(), Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        audioRecord = new AudioRecord(AUDIO_SOURCE, RECORDER_SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT, BUFFER_SIZE_RECORDING);
+    }
 
     // Looks like checkPermissions is available out of the box
 
@@ -78,6 +107,43 @@ public class MicrophonePlugin extends Plugin {
     @PermissionCallback
     private void microphonePermissionsCallback(PluginCall call) {
         checkPermissions(call);
+    }
+
+    @PluginMethod
+    public void enableMicrophone(PluginCall call) {
+        if (!isAudioRecordingPermissionGranted()) {
+            call.reject(StatusMessageTypes.MicrophonePermissionNotGranted.getValue());
+            return;
+        }
+
+        boolean recordingEnabled = call.getBoolean("recordingEnabled");
+        boolean silenceDetection = call.getBoolean("silenceDetection");
+
+        setupAudioEngine();
+
+        if (audioRecord.getState() != AudioRecord.STATE_INITIALIZED) {
+            Log.e(TAG, "error initializing AudioRecord");
+            return;
+        }
+
+        audioRecord.startRecording();
+        isRecordingAudio = true;
+        writeAudioDataToFile();
+
+        JSObject success = new JSObject();
+        success.put("status", StatusMessageTypes.RecordingStared.getValue());
+        call.resolve(success);
+    }
+
+    @PluginMethod
+    public void disableMicrophone(PluginCall call) {
+        if (audioRecord != null) {
+            isRecordingAudio = false;
+            audioRecord.stop();
+            audioRecord.release();
+            audioRecord = null;
+//            recordingThread = null;
+        }
     }
 
     @PluginMethod
@@ -165,6 +231,42 @@ public class MicrophonePlugin extends Plugin {
             return mp.getDuration();
         } catch (Exception ignore) {
             return -1;
+        }
+    }
+
+    private void writeAudioDataToFile() {
+        byte[] buffer = new byte[BUFFER_SIZE_RECORDING / 2];
+        FileOutputStream outputStream = null;
+
+        try {
+            outputStream = new FileOutputStream(fileName);
+        } catch (FileNotFoundException e) {
+            return;
+        }
+
+        while (isRecordingAudio) {
+            int read = audioRecord.read(buffer, 0, buffer.length);
+            JSObject ret = new JSObject();
+            ret.put("audioData", buffer);
+
+            PluginHandle appHandle = this.bridge.getPlugin("Microphone");
+            MicrophonePlugin plugin = (MicrophonePlugin) appHandle.getInstance();
+            plugin.notifyListeners("audioDataReceived", ret);
+
+            try {
+                outputStream.write(buffer, 0, read);
+                // clean up file writing operations
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        try {
+            outputStream.flush();
+            outputStream.close();
+        } catch (IOException e) {
+            Log.e(TAG, "exception while closing output stream $e");
+            e.printStackTrace();
         }
     }
 }
