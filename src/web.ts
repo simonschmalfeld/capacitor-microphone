@@ -29,8 +29,7 @@ export class MicrophoneWeb extends WebPlugin implements MicrophonePlugin {
 
     try {
       if (audioContextGlobal) {
-        audioContextGlobal.resume();
-        return;
+        audioContextGlobal.close();
       }
 
       audioContextGlobal = new window.AudioContext({ sampleRate });
